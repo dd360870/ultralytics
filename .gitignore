@@ -3,6 +3,9 @@ __pycache__/
 *.py[cod]
 *$py.class
 
+# tracknet
+tracknet/train_data/
+
 # C extensions
 *.so
 

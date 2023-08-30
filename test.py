@@ -19,25 +19,71 @@ import pandas as pd
 import numpy as np
 from torchvision import transforms
 import torch.nn.functional as F
+from ultralytics.yolo.utils.checks import check_file, check_imgsz, check_pip_update_available, check_yaml
+from ultralytics.yolo.utils import (DEFAULT_CFG, DEFAULT_CFG_DICT, DEFAULT_CFG_KEYS, LOGGER, RANK, ROOT, callbacks,
+                                    is_git_dir, yaml_load)
+from ultralytics.yolo.utils.loss import v8ClassificationLoss, v8DetectionLoss, v8PoseLoss, v8SegmentationLoss
+from ultralytics.yolo.utils.tal import TaskAlignedAssigner, dist2bbox, make_anchors
 
-# class TrackNetV4(DetectionModel):
-#     def init_criterion(self):
-#         # Replace with your custom loss function
-#         return loss_fn()
+class TrackNetV4(DetectionModel):
+    def init_criterion(self):
+        # Replace with your custom loss function
+        return TrackNetLoss(self)
 
-# def loss_fn(y_pred, y_true):
-#     ...
+class TrackNetLoss:
+    def __init__(self, model):  # model must be de-paralleled
 
+        device = next(model.parameters()).device  # get model device
+        h = model.args  # hyperparameters
+
+        m = model.model[-1]  # Detect() module
+        self.bce = nn.BCEWithLogitsLoss(reduction='none')
+        self.hyp = h
+        self.stride = m.stride  # model strides
+        self.nc = m.nc  # number of classes
+        self.no = m.no
+        self.reg_max = m.reg_max
+        self.device = device
+
+        self.use_dfl = m.reg_max > 1
+
+    def __call__(self, preds, batch):
+        
+        batch_target = batch['target']
+        loss = torch.zeros(2, device=self.device)  # box, cls, dfl
+        batch_size = preds[0].shape[0]
+        for idx, pred in enumerate(preds):
+            pred_distri, pred_scores = torch.split(pred, [4, 1], dim=1)
+            targets = torch.zeros(10, 4, pred_distri.shape[2], pred_distri.shape[3])
+            stride = self.stride[idx]
+            for idx, target in enumerate(batch_target):
+                grid_x, grid_y, offset_x, offset_y = targetGrid(target[2], target[3], stride)
+                targets[idx, 0, grid_y, grid_x] = offset_x
+                targets[idx, 1, grid_y, grid_x] = offset_y
+                targets[idx, 2, grid_y, grid_x] = target[4]
+                targets[idx, 3, grid_y, grid_x] = target[5]
+            loss[0] += F.mse_loss(pred_distri, targets, reduction='mean')
+
+        return loss.sum() * batch_size, loss.detach()  # loss(box, cls, dfl)
+
+def targetGrid(target_x, target_y, stride):
+    grid_x = int(target_x / stride)
+    grid_y = int(target_y / stride)
+    offset_x = (target_x / stride) - grid_x
+    offset_y = (target_y / stride) - grid_y
+    return grid_x, grid_y, offset_x, offset_y
 
 class CustomTrainer(DetectionTrainer):
     def build_dataset(self, img_path, mode='train', batch=None):
         return TrackNetDataset(root_dir=r"C:\Users\user1\bartek\github\BartekTao\ultralytics\tracknet\train_data")
 
     def get_model(self, cfg=None, weights=None, verbose=True):
-        model = DetectionModel(cfg, ch=30, nc=self.data['nc'], verbose=verbose and RANK == -1)
+        model = TrackNetV4(cfg, ch=3, nc=self.data['nc'], verbose=verbose and RANK == -1)
         if weights:
             model.load(weights)
         return model
+    def preprocess_batch(self, batch):
+        return batch
 
 def log_model(trainer):
     last_weight_path = trainer.last
@@ -71,9 +117,12 @@ class TrackNetDataset(Dataset):
                 
                 # Read the ball_trajectory csv file
                 ball_trajectory_df = pd.read_csv(ball_trajectory_file)
-                ball_trajectory_df['dX'] = ball_trajectory_df['X'].diff().fillna(0)
-                ball_trajectory_df['dY'] = ball_trajectory_df['Y'].diff().fillna(0)
-                ball_trajectory_df = ball_trajectory_df.drop(['Visibility', 'Fast'], axis=1)
+                ball_trajectory_df['dX'] = (-ball_trajectory_df['X'].iloc[::-1].diff().iloc[::-1]).fillna(0)
+                ball_trajectory_df['dY'] = (-ball_trajectory_df['Y'].iloc[::-1].diff().iloc[::-1]).fillna(0)
+
+                # ball_trajectory_df['dX'] = ball_trajectory_df['X'].diff().fillna(0)
+                # ball_trajectory_df['dY'] = ball_trajectory_df['Y'].diff().fillna(0)
+                ball_trajectory_df = ball_trajectory_df.drop(['Fast'], axis=1)
 
                 # Get the directory for frames of this video
                 frame_dir = os.path.join(match_dir_path, 'frame', video_file_name)
@@ -82,10 +131,10 @@ class TrackNetDataset(Dataset):
                 frame_files = sorted(os.listdir(frame_dir), key=lambda x: int(os.path.splitext(x)[0]))
 
                 # Create sliding windows of 10 frames
-                for i in range(len(frame_files) - (num_input-1)):
-                    frames = [os.path.join(frame_dir, frame) for frame in frame_files[i: i + num_input]]
-                    ball_trajectory = ball_trajectory_df.iloc[i: i + num_input].values
-                    self.samples.append((frames, ball_trajectory))
+                for i in range(len(frame_files)):
+                    frame = os.path.join(frame_dir, frame_files[i])
+                    ball_trajectory = ball_trajectory_df.iloc[i].values
+                    self.samples.append(([frame], ball_trajectory))
     
     def __len__(self):
         return len(self.samples)
@@ -100,8 +149,9 @@ class TrackNetDataset(Dataset):
 
         # Convert ball_trajectory to tensor
         ball_trajectory = torch.from_numpy(ball_trajectory)
-        
-        return images, ball_trajectory
+        shape = images.shape
+        shape = ball_trajectory.shape
+        return {"img": images, "target": ball_trajectory}
 
     def open_image(self, path):
         # Open the image file, convert it to RGB, and then to a tensor
@@ -119,18 +169,29 @@ class TrackNetDataset(Dataset):
 
         return img
 
-from ultralytics import YOLO
+# from ultralytics import YOLO
 
-# Create a new YOLO model from scratch
-model = YOLO(r'C:\Users\user1\bartek\github\BartekTao\ultralytics\ultralytics\models\v8\yolov8.yaml')
+# # Create a new YOLO model from scratch
+# model = YOLO(r'C:\Users\user1\bartek\github\BartekTao\ultralytics\ultralytics\models\v8\yolov8.yaml')
 
-# Train the model using the 'coco128.yaml' dataset for 3 epochs
-results = model.train(data='coco128.yaml', epochs=3)
+# # Train the model using the 'coco128.yaml' dataset for 3 epochs
+# results = model.train(data='coco128.yaml', epochs=3)
+# # results = model.train(data='tracknet.yaml', epochs=3)
 
-# Evaluate the model's performance on the validation set
-results = model.val()
+# # Evaluate the model's performance on the validation set
+# results = model.val()
 
+overrides = {}
+overrides['model'] = r'C:\Users\user1\bartek\github\BartekTao\ultralytics\ultralytics\models\v8\yolov8.yaml'
+overrides['mode'] = 'train'
+# overrides['data'] = 'coco128.yaml'
+overrides['data'] = 'tracknet.yaml'
+overrides['epochs'] = 3
+overrides['plots'] = False
+overrides['batch'] = 10
 # overrides={"OPTIMIZER.LR": 0.001, "DATALOADER.BATCH_SIZE": 16}
-trainer = CustomTrainer(r'C:\Users\user1\bartek\github\BartekTao\ultralytics\ultralytics\models\v8\yolov8.yaml')
+torch.autograd.set_detect_anomaly(True)
+# trainer = DetectionTrainer(overrides=overrides)
+trainer = CustomTrainer(overrides=overrides)
 trainer.add_callback("on_train_epoch_end", log_model)  # Adds to existing callback
 trainer.train()
