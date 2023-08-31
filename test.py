@@ -55,16 +55,23 @@ class TrackNetLoss:
         for idx, pred in enumerate(preds):
             pred_distri, pred_scores = torch.split(pred, [4, 1], dim=1)
             targets = torch.zeros(10, 4, pred_distri.shape[2], pred_distri.shape[3])
+            cls_targets = torch.zeros(10, 1, pred_scores.shape[2], pred_scores.shape[3])
             stride = self.stride[idx]
             for idx, target in enumerate(batch_target):
+                # xy
                 grid_x, grid_y, offset_x, offset_y = targetGrid(target[2], target[3], stride)
                 targets[idx, 0, grid_y, grid_x] = offset_x
                 targets[idx, 1, grid_y, grid_x] = offset_y
                 targets[idx, 2, grid_y, grid_x] = target[4]
                 targets[idx, 3, grid_y, grid_x] = target[5]
-            loss[0] += F.mse_loss(pred_distri, targets, reduction='mean')
 
-        return loss.sum() * batch_size, loss.detach()  # loss(box, cls, dfl)
+                ## cls
+                if target[1] == 1:
+                    cls_targets[idx, 0, grid_y, grid_x] = 1
+            loss[0] += F.mse_loss(pred_distri, targets, reduction='mean')
+            loss[1] += focal_loss(pred_scores, cls_targets, alpha=[0.99, 0.01])
+
+        return loss.sum() * batch_size, loss.detach()
 
 def targetGrid(target_x, target_y, stride):
     grid_x = int(target_x / stride)
@@ -72,6 +79,31 @@ def targetGrid(target_x, target_y, stride):
     offset_x = (target_x / stride) - grid_x
     offset_y = (target_y / stride) - grid_y
     return grid_x, grid_y, offset_x, offset_y
+
+def focal_loss(pred_logits, targets, alpha=0.95, gamma=4.0, epsilon=1e-6):
+    """
+    :param pred_logits: 預測的logits, shape [batch_size, 1, H, W]
+    :param targets: 真實標籤, shape [batch_size, 1, H, W]
+    :param alpha: 用於平衡正、負樣本的權重。這裡可以是一個scalar或一個list[alpha_neg, alpha_pos]。
+    :param gamma: 用於調節著重於正確或錯誤預測的程度
+    :return: focal loss
+    """
+    pred_probs = torch.sigmoid(pred_logits)
+    # pred_probs = torch.clamp(pred_probs, epsilon, 1.0 - epsilon)
+    if isinstance(alpha, (list, tuple)):
+        alpha_neg = alpha[0]
+        alpha_pos = alpha[1]
+    else:
+        alpha_neg = (1 - alpha)
+        alpha_pos = alpha
+
+    pt = torch.where(targets == 1, pred_probs, 1 - pred_probs)
+    alpha_t = torch.where(targets == 1, alpha_pos, alpha_neg)
+    
+    ce_loss = -torch.log(pt)
+    fl = alpha_t * (1 - pt) ** gamma * ce_loss
+    return fl.mean()
+
 
 class CustomTrainer(DetectionTrainer):
     def build_dataset(self, img_path, mode='train', batch=None):
@@ -190,7 +222,7 @@ overrides['epochs'] = 3
 overrides['plots'] = False
 overrides['batch'] = 10
 # overrides={"OPTIMIZER.LR": 0.001, "DATALOADER.BATCH_SIZE": 16}
-torch.autograd.set_detect_anomaly(True)
+# torch.autograd.set_detect_anomaly(True)
 # trainer = DetectionTrainer(overrides=overrides)
 trainer = CustomTrainer(overrides=overrides)
 trainer.add_callback("on_train_epoch_end", log_model)  # Adds to existing callback
