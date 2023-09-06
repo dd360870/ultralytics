@@ -1,6 +1,5 @@
-import glob
+
 import os
-import random
 import numpy as np
 import torch
 import torch.nn as nn
@@ -14,7 +13,6 @@ import pandas as pd
 import torch
 from torch.utils.data import Dataset
 from PIL import Image
-import os
 import pandas as pd
 import numpy as np
 from torchvision import transforms
@@ -24,6 +22,8 @@ from ultralytics.yolo.utils import (DEFAULT_CFG, DEFAULT_CFG_DICT, DEFAULT_CFG_K
                                     is_git_dir, yaml_load)
 from ultralytics.yolo.utils.loss import v8ClassificationLoss, v8DetectionLoss, v8PoseLoss, v8SegmentationLoss
 from ultralytics.yolo.utils.tal import TaskAlignedAssigner, dist2bbox, make_anchors
+import matplotlib.pyplot as plt
+import matplotlib.patches as patches
 
 class TrackNetV4(DetectionModel):
     def init_criterion(self):
@@ -48,28 +48,33 @@ class TrackNetLoss:
         self.use_dfl = m.reg_max > 1
 
     def __call__(self, preds, batch):
-        
+        # preds = [[10*50*80*80]]
+        preds = preds[0] # only pick first (stride = 16)
         batch_target = batch['target']
         loss = torch.zeros(2, device=self.device)  # box, cls, dfl
-        batch_size = preds[0].shape[0]
+        batch_size = preds.shape[0]
+        # for each batch
         for idx, pred in enumerate(preds):
-            pred_distri, pred_scores = torch.split(pred, [4, 1], dim=1)
-            targets = torch.zeros(10, 4, pred_distri.shape[2], pred_distri.shape[3])
-            cls_targets = torch.zeros(10, 1, pred_scores.shape[2], pred_scores.shape[3])
-            stride = self.stride[idx]
-            for idx, target in enumerate(batch_target):
-                # xy
-                grid_x, grid_y, offset_x, offset_y = targetGrid(target[2], target[3], stride)
-                targets[idx, 0, grid_y, grid_x] = offset_x
-                targets[idx, 1, grid_y, grid_x] = offset_y
-                targets[idx, 2, grid_y, grid_x] = target[4]
-                targets[idx, 3, grid_y, grid_x] = target[5]
+            # pred = [50 * 80 * 80]
+            pred_distri, pred_scores = torch.split(pred, [40, 10], dim=0)
 
-                ## cls
+            targets = pred_distri.clone().detach()
+            cls_targets = torch.zeros(10, pred_scores.shape[1], pred_scores.shape[2])
+            stride = self.stride[0]
+            for idx, target in enumerate(batch_target[idx]):
                 if target[1] == 1:
-                    cls_targets[idx, 0, grid_y, grid_x] = 1
-            loss[0] += F.mse_loss(pred_distri, targets, reduction='mean')
-            loss[1] += focal_loss(pred_scores, cls_targets, alpha=[0.99, 0.01])
+                    # xy
+                    grid_x, grid_y, offset_x, offset_y = targetGrid(target[2], target[3], stride)
+                    targets[4*idx, grid_y, grid_x] = offset_x
+                    targets[4*idx + 1, grid_y, grid_x] = offset_y
+                    targets[4*idx + 2, grid_y, grid_x] = target[4]
+                    targets[4*idx + 3, grid_y, grid_x] = target[5]
+
+                    ## cls
+                    cls_targets[idx, grid_y, grid_x] = 1
+            weight = 10
+            loss[0] += weight * F.mse_loss(pred_distri, targets, reduction='mean')
+            loss[1] += focal_loss(pred_scores, cls_targets, alpha=[0.94, 0.06], weight=weight)
 
         return loss.sum() * batch_size, loss.detach()
 
@@ -80,7 +85,7 @@ def targetGrid(target_x, target_y, stride):
     offset_y = (target_y / stride) - grid_y
     return grid_x, grid_y, offset_x, offset_y
 
-def focal_loss(pred_logits, targets, alpha=0.95, gamma=4.0, epsilon=1e-6):
+def focal_loss(pred_logits, targets, alpha=0.95, gamma=4.0, epsilon=1e-6, weight=10):
     """
     :param pred_logits: 預測的logits, shape [batch_size, 1, H, W]
     :param targets: 真實標籤, shape [batch_size, 1, H, W]
@@ -102,6 +107,7 @@ def focal_loss(pred_logits, targets, alpha=0.95, gamma=4.0, epsilon=1e-6):
     
     ce_loss = -torch.log(pt)
     fl = alpha_t * (1 - pt) ** gamma * ce_loss
+    fl = torch.where(targets == 1, fl * weight, fl)
     return fl.mean()
 
 
@@ -116,6 +122,10 @@ class CustomTrainer(DetectionTrainer):
         return model
     def preprocess_batch(self, batch):
         return batch
+    #def get_validator(self):
+    def update_metrics(self, preds, batch):
+        return
+
 
 def log_model(trainer):
     last_weight_path = trainer.last
@@ -167,27 +177,119 @@ class TrackNetDataset(Dataset):
                     frames = [os.path.join(frame_dir, frame) for frame in frame_files[i: i + num_input]]
                     ball_trajectory = ball_trajectory_df.iloc[i: i + num_input].values
                     self.samples.append((frames, ball_trajectory))
+            # check label result
+            # idx = np.random.randint(50, 100)
+            # frames, ball_trajectory = self.samples[206]
+            # ball_trajectory = torch.from_numpy(ball_trajectory)
+            # # Load images and convert them to tensors
+            # images = [self.open_image(frame) for frame in frames]
+
+            # idx = np.random.randint(0, 9)
+            # i = images[idx]
+            # xy = [(ball_trajectory[idx][2].item(), ball_trajectory[idx][3].item())]
+            #self.display_image_with_coordinates(i, xy)
     
     def __len__(self):
         return len(self.samples)
 
     def __getitem__(self, idx):
         frames, ball_trajectory = self.samples[idx]
-        
+        ball_trajectory = torch.from_numpy(ball_trajectory)
+        ball_trajectory = self.transform_coordinates(ball_trajectory, 1280, 720)
         # Load images and convert them to tensors
         images = [self.open_image(frame) for frame in frames]
         images = [self.pad_to_square(img, 0) for img in images]
+
+        # check resize image
+        # idx = np.random.randint(0, 10)
+        # i = images[idx]
+        # xy = [(ball_trajectory[idx][2].item(), ball_trajectory[idx][3].item())]
+        # self.display_image_with_coordinates(i, xy)
+
         images = torch.cat(images, 0)  # Concatenate along the channel dimension
 
         # Convert ball_trajectory to tensor
-        ball_trajectory = torch.from_numpy(ball_trajectory)
+        
         shape = images.shape
         shape = ball_trajectory.shape
         return {"img": images, "target": ball_trajectory}
 
+    def transform_coordinates(self, data, w, h, target_size=640):
+        """
+        Transform the X, Y coordinates in data based on image resizing and padding.
+        
+        Parameters:
+        - data (torch.Tensor): A tensor of shape (N, 6) with columns (Frame, Visibility, X, Y, dx, dy).
+        - w (int): Original width of the image.
+        - h (int): Original height of the image.
+        - target_size (int): The desired size for the longest side after resizing.
+        
+        Returns:
+        - torch.Tensor: A transformed tensor of shape (N, 6).
+        """
+        
+        # Clone the data to ensure we don't modify the original tensor in-place
+        data_transformed = data.clone()
+        
+        # Determine padding
+        max_dim = max(w, h)
+        pad_diff = max_dim - min(w, h)
+        pad1 = pad_diff // 2
+        
+        # Indices where x and y are not both 0
+        indices_to_transform = (data[:, 2] != 0) | (data[:, 3] != 0)
+        
+        # Adjust for padding
+        if h < w:
+            data_transformed[indices_to_transform, 3] += pad1
+        else:
+            data_transformed[indices_to_transform, 2] += pad1  # if height is greater, adjust X
+
+        # Adjust for scaling
+        scale_factor = target_size / max_dim
+        data_transformed[:, 2] *= scale_factor  # scale X
+        data_transformed[:, 3] *= scale_factor  # scale Y
+        data_transformed[:, 4] *= scale_factor  # scale dx
+        data_transformed[:, 5] *= scale_factor  # scale dy
+        
+        return data_transformed
+    def display_image_with_coordinates(self, img_tensor, coordinates):
+        """
+        Display an image with annotated coordinates.
+
+        Parameters:
+        - img_tensor (torch.Tensor): The image tensor of shape (C, H, W) or (H, W, C).
+        - coordinates (list of tuples): A list of (X, Y) coordinates to be annotated.
+        """
+        
+        # Convert the image tensor to numpy array
+        img_array = img_tensor.permute(1, 2, 0).cpu().numpy()
+
+        # Create a figure and axes
+        fig, ax = plt.subplots(1)
+
+        # Display the image
+        ax.imshow(img_array)
+
+        # Plot each coordinate
+        for (x, y) in coordinates:
+            ax.scatter(x, y, s=50, c='red', marker='o')
+            # Optionally, you can also draw a small rectangle around each point
+            rect = patches.Rectangle((x-5, y-5), 10, 10, linewidth=1, edgecolor='red', facecolor='none')
+            ax.add_patch(rect)
+
+        plt.show()
+
     def open_image(self, path):
-        # Open the image file, convert it to RGB, and then to a tensor
-        return transforms.ToTensor()(Image.open(path).convert('L'))
+        # Open the image file
+        img = Image.open(path).convert('L')
+        
+        # Reduce the resolution to half
+        width, height = img.size
+        img = img.resize((width // 2, height // 2))
+        
+        # Convert the image to a tensor
+        return transforms.ToTensor()(img)
 
     def pad_to_square(self, img, pad_value):
         c, h, w = img.shape
