@@ -255,7 +255,7 @@ class TrackNetDataset(Dataset):
                 continue
             
             video_dir = os.path.join(match_dir_path, 'video')
-            ball_trajectory_dir = os.path.join(match_dir_path, 'ball_trajectory')
+            ball_trajectory_dir = os.path.join(match_dir_path, 'csv')
 
             # Traverse all videos in the match directory
             for video_file in os.listdir(video_dir):
@@ -263,7 +263,7 @@ class TrackNetDataset(Dataset):
                 video_file_name = os.path.splitext(video_file)[0]
 
                 # The ball_trajectory csv file has the same name as the video file
-                ball_trajectory_file = os.path.join(ball_trajectory_dir, video_file_name + '.csv')
+                ball_trajectory_file = os.path.join(ball_trajectory_dir, video_file_name + "_ball" + '.csv')
                 
                 # Read the ball_trajectory csv file
                 ball_trajectory_df = pd.read_csv(ball_trajectory_file)
