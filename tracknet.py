@@ -4,6 +4,7 @@ import os
 import numpy as np
 import torch
 import torch.nn as nn
+from ultralytics.yolo.data import dataloaders
 from ultralytics.yolo.engine.validator import BaseValidator
 from ultralytics.yolo.utils.metrics import ConfusionMatrix, DetMetrics
 from ultralytics.yolo.v8.detect.train import DetectionTrainer
@@ -27,6 +28,9 @@ from ultralytics.yolo.utils.loss import v8ClassificationLoss, v8DetectionLoss, v
 from ultralytics.yolo.utils.tal import TaskAlignedAssigner, dist2bbox, make_anchors
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+
+imagePath = r"C:\Users\user1\bartek\github\BartekTao\ultralytics\tracknet\train_data"
+modelPath = r'C:\Users\user1\bartek\github\BartekTao\ultralytics\ultralytics\models\v8\tracknetv4.yaml'
 
 class TrackNetV4(DetectionModel):
     def init_criterion(self):
@@ -116,7 +120,7 @@ def focal_loss(pred_logits, targets, alpha=0.95, gamma=4.0, epsilon=1e-6, weight
 
 class CustomTrainer(DetectionTrainer):
     def build_dataset(self, img_path, mode='train', batch=None):
-        return TrackNetDataset(root_dir=r"C:\Users\user1\bartek\github\BartekTao\ultralytics\tracknet\train_data")
+        return TrackNetDataset(root_dir=imagePath)
 
     def get_model(self, cfg=None, weights=None, verbose=True):
         model = TrackNetV4(cfg, ch=10, nc=self.data['nc'], verbose=verbose and RANK == -1)
@@ -151,7 +155,7 @@ class TrackNetValidator(BaseValidator):
     def get_dataloader(self, dataset_path, batch_size):
         """For TrackNet, we can use the provided TrackNetDataset to get the dataloader."""
         dataset = TrackNetDataset(root_dir=dataset_path)
-        return DataLoader(dataset, batch_size=batch_size, shuffle=False, num_workers=2)
+        return dataloaders(dataset, batch_size=batch_size, shuffle=False, num_workers=2)
     
     def preprocess(self, batch):
         """In this case, the preprocessing step is mainly handled by the dataloader."""
@@ -420,7 +424,7 @@ class TrackNetDataset(Dataset):
 # results = model.val()
 
 overrides = {}
-overrides['model'] = r'C:\Users\user1\bartek\github\BartekTao\ultralytics\ultralytics\models\v8\tracknetv4.yaml'
+overrides['model'] = modelPath
 overrides['mode'] = 'train'
 # overrides['data'] = 'coco128.yaml'
 overrides['data'] = 'tracknet.yaml'
