@@ -56,8 +56,9 @@ class TrackNetLoss:
 
     def __call__(self, preds, batch):
         # preds = [[10*50*80*80]]
-        preds = preds[0] # only pick first (stride = 16)
-        batch_target = batch['target']
+        preds = preds.to(self.device) # only pick first (stride = 16)
+        batch_target = batch['target'].to(self.device)
+
         loss = torch.zeros(2, device=self.device)  # box, cls, dfl
         batch_size = preds.shape[0]
         # for each batch
@@ -65,8 +66,8 @@ class TrackNetLoss:
             # pred = [50 * 80 * 80]
             pred_distri, pred_scores = torch.split(pred, [40, 10], dim=0)
 
-            targets = pred_distri.clone().detach()
-            cls_targets = torch.zeros(10, pred_scores.shape[1], pred_scores.shape[2])
+            targets = pred_distri.clone().detach().to(self.device)
+            cls_targets = torch.zeros(10, pred_scores.shape[1], pred_scores.shape[2], device=self.device)
             stride = self.stride[0]
             for idx, target in enumerate(batch_target[idx]):
                 if target[1] == 1:
