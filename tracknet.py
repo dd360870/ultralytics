@@ -128,6 +128,7 @@ class CustomTrainer(DetectionTrainer):
             model.load(weights)
         return model
     def preprocess_batch(self, batch):
+        batch['img'] = batch['img'].to(self.device, non_blocking=True).float() / 255
         return batch
     def get_validator(self):
         return TrackNetValidator(self.test_loader, save_dir=self.save_dir, args=copy(self.args))
@@ -315,7 +316,6 @@ class TrackNetDataset(Dataset):
         # self.display_image_with_coordinates(i, xy)
 
         images = torch.cat(images, 0)  # Concatenate along the channel dimension
-
         # Convert ball_trajectory to tensor
         
         shape = images.shape
