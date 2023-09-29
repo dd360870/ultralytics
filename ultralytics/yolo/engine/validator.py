@@ -159,7 +159,8 @@ class BaseValidator:
 
             # Inference
             with dt[1]:
-                preds = model(batch['img'], augment=self.args.augment)
+                input_data = batch['img'].to(device=self.device, dtype=torch.half) if self.args.half else batch['img'].to(device=self.device)
+                preds = model(input_data, augment=self.args.augment)
 
             # Loss
             with dt[2]:
