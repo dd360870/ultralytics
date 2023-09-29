@@ -5,6 +5,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 from ultralytics.yolo.data import dataloaders
+from ultralytics.yolo.data.build import build_dataloader
 from ultralytics.yolo.engine.validator import BaseValidator
 from ultralytics.yolo.utils.metrics import ConfusionMatrix, DetMetrics
 from ultralytics.yolo.v8.detect.train import DetectionTrainer
@@ -157,7 +158,7 @@ class TrackNetValidator(BaseValidator):
     def get_dataloader(self, dataset_path, batch_size):
         """For TrackNet, we can use the provided TrackNetDataset to get the dataloader."""
         dataset = TrackNetDataset(root_dir=dataset_path)
-        return dataloaders(dataset, batch_size=batch_size, shuffle=False, num_workers=2)
+        return build_dataloader(dataset, batch_size, self.args.workers, shuffle=False, rank=-1)
     
     def preprocess(self, batch):
         """In this case, the preprocessing step is mainly handled by the dataloader."""
