@@ -30,7 +30,7 @@ from ultralytics.yolo.utils.tal import TaskAlignedAssigner, dist2bbox, make_anch
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
-imagePath = r"C:\Users\user1\bartek\github\BartekTao\ultralytics\tracknet\train_data"
+imagePath = r"C:\Users\user1\bartek\github\BartekTao\ultralytics\tracknet\train_data_base"
 modelPath = r'C:\Users\user1\bartek\github\BartekTao\ultralytics\ultralytics\models\v8\tracknetv4.yaml'
 
 class TrackNetV4(DetectionModel):
@@ -57,7 +57,7 @@ class TrackNetLoss:
 
     def __call__(self, preds, batch):
         # preds = [[10*50*80*80]]
-        preds = preds.to(self.device) # only pick first (stride = 16)
+        preds = preds[0].to(self.device) # only pick first (stride = 16)
         batch_target = batch['target'].to(self.device)
 
         loss = torch.zeros(2, device=self.device)  # box, cls, dfl
