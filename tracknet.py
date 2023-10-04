@@ -31,6 +31,7 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
 imagePath = r"C:\Users\user1\bartek\github\BartekTao\ultralytics\tracknet\train_data_base"
+imagePath = r"C:\Users\user1\bartek\github\BartekTao\ultralytics\tracknet\train_data"
 modelPath = r'C:\Users\user1\bartek\github\BartekTao\ultralytics\ultralytics\models\v8\tracknetv4.yaml'
 
 class TrackNetV4(DetectionModel):
@@ -281,11 +282,13 @@ class TrackNetDataset(Dataset):
                 # Get all frame file names and sort them by frame ID
                 frame_files = sorted(os.listdir(frame_dir), key=lambda x: int(os.path.splitext(x)[0]))
 
-                # Create sliding windows of 10 frames
+                # Create sliding windows of num_input frames
                 for i in range(len(frame_files) - (num_input-1)):
                     frames = [os.path.join(frame_dir, frame) for frame in frame_files[i: i + num_input]]
                     ball_trajectory = ball_trajectory_df.iloc[i: i + num_input].values
-                    self.samples.append((frames, ball_trajectory))
+                    # Avoid invalid data
+                    if len(frames) == num_input and len(ball_trajectory) == num_input:
+                        self.samples.append((frames, ball_trajectory))
             # check label result
             # idx = np.random.randint(50, 100)
             # frames, ball_trajectory = self.samples[206]
