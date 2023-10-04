@@ -31,7 +31,6 @@ import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
 imagePath = r"C:\Users\user1\bartek\github\BartekTao\ultralytics\tracknet\train_data_base"
-imagePath = r"C:\Users\user1\bartek\github\BartekTao\ultralytics\tracknet\train_data"
 modelPath = r'C:\Users\user1\bartek\github\BartekTao\ultralytics\ultralytics\models\v8\tracknetv4.yaml'
 
 class TrackNetV4(DetectionModel):
@@ -209,6 +208,9 @@ class TrackNetValidator(BaseValidator):
                 # print(pred_probs[idx][max_positions[idx]])
                 # print(max_positions[idx])
                 if pred_probs[idx][max_positions[idx]] > 0.5:
+                    x, y = max_positions[idx]
+                    real_x = x*16 + pred_distri[idx][x][y]
+                    real_y = y*16 + pred_distri[idx][x][y]
                     if (grid_x, grid_y) == max_positions[idx]:
                         self.TP+=1
                     else:
