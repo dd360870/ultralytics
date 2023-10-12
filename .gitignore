@@ -5,6 +5,8 @@ __pycache__/
 
 # tracknet
 tracknet/train_data/
+tracknet/train_data2/
+tracknet/train_data_base/
 
 # C extensions
 *.so
