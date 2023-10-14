@@ -4,9 +4,9 @@ __pycache__/
 *$py.class
 
 # tracknet
-tracknet/train_data/
-tracknet/train_data2/
-tracknet/train_data_base/
+ultralytics/tracknet/train_data/
+ultralytics/tracknet/train_data2/
+ultralytics/tracknet/train_data_base/
 
 # C extensions
 *.so

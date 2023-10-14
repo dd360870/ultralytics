@@ -1,4 +1,5 @@
 
+import argparse
 from copy import copy
 import os
 import numpy as np
@@ -30,12 +31,11 @@ from ultralytics.yolo.utils.tal import TaskAlignedAssigner, dist2bbox, make_anch
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
 
-imagePath = r"C:\Users\user1\bartek\github\BartekTao\ultralytics\tracknet\train_data_base"
-modelPath = r'C:\Users\user1\bartek\github\BartekTao\ultralytics\ultralytics\models\v8\tracknetv4.yaml'
+#imagePath = r"C:\Users\user1\bartek\github\BartekTao\ultralytics\tracknet\train_data"
+#modelPath = r'C:\Users\user1\bartek\github\BartekTao\ultralytics\ultralytics\models\v8\tracknetv4.yaml'
 
 class TrackNetV4(DetectionModel):
     def init_criterion(self):
-        # Replace with your custom loss function
         return TrackNetLoss(self)
 
 class TrackNetLoss:
@@ -120,9 +120,9 @@ def focal_loss(pred_logits, targets, alpha=0.95, gamma=4.0, epsilon=1e-6, weight
     return fl.mean()
 
 
-class CustomTrainer(DetectionTrainer):
+class TrackNetTrainer(DetectionTrainer):
     def build_dataset(self, img_path, mode='train', batch=None):
-        return TrackNetDataset(root_dir=imagePath)
+        return TrackNetDataset(root_dir=img_path)
 
     def get_model(self, cfg=None, weights=None, verbose=True):
         model = TrackNetV4(cfg, ch=10, nc=self.data['nc'], verbose=verbose and RANK == -1)
@@ -238,7 +238,7 @@ class TrackNetValidator(BaseValidator):
             precision = self.TP/(self.TP+self.FP)
             recall = self.TP/(self.TP+self.FN)
             f1 = (2*precision*recall)/(precision+recall)
-        print(f"Validation Accuracy: {self.acc:.4f}, Validation Precision: {precision:.4f}, Validation Recall: {recall:.4f}, , Validation F1-Score: {f1:.4f}")
+        print(f"Validation Loss: {self.loss}Validation Accuracy: {self.acc:.4f}, Validation Precision: {precision:.4f}, Validation Recall: {recall:.4f}, , Validation F1-Score: {f1:.4f}")
 
     def get_desc(self):
         """Return a description for tqdm progress bar."""
@@ -428,17 +428,27 @@ class TrackNetDataset(Dataset):
 # # Evaluate the model's performance on the validation set
 # results = model.val()
 
-overrides = {}
-overrides['model'] = modelPath
-overrides['mode'] = 'train'
-# overrides['data'] = 'coco128.yaml'
-overrides['data'] = 'tracknet.yaml'
-overrides['epochs'] = 3
-overrides['plots'] = False
-overrides['batch'] = 10
-# overrides={"OPTIMIZER.LR": 0.001, "DATALOADER.BATCH_SIZE": 16}
-# torch.autograd.set_detect_anomaly(True)
-# trainer = DetectionTrainer(overrides=overrides)
-trainer = CustomTrainer(overrides=overrides)
-trainer.add_callback("on_train_epoch_end", log_model)  # Adds to existing callback
-trainer.train()
+def main(model_path, mode, data, epochs, plots, batch):
+    overrides = {}
+    overrides['model'] = model_path
+    overrides['mode'] = mode
+    overrides['data'] = data
+    overrides['epochs'] = epochs
+    overrides['plots'] = plots
+    overrides['batch'] = batch
+    trainer = TrackNetTrainer(overrides=overrides)
+    trainer.add_callback("on_train_epoch_end", log_model)  # Adds to existing callback
+    trainer.train()
+
+if __name__ == "__main__":
+    parser = argparse.ArgumentParser(description='Train a custom model with overrides.')
+    
+    parser.add_argument('--model_path', type=str, default=r'C:\Users\user1\bartek\github\BartekTao\ultralytics\ultralytics\models\v8\tracknetv4.yaml', help='Path to the model')
+    parser.add_argument('--mode', type=str, default='train', help='Mode for the training (e.g., train, test)')
+    parser.add_argument('--data', type=str, default='tracknet.yaml', help='Data configuration (e.g., tracknet.yaml)')
+    parser.add_argument('--epochs', type=int, default=3, help='Number of epochs')
+    parser.add_argument('--plots', type=bool, default=False, help='Whether to plot or not')
+    parser.add_argument('--batch', type=int, default=20, help='Batch size')
+    
+    args = parser.parse_args()
+    main(args.model_path, args.mode, args.data, args.epochs, args.plots, args.batch)
