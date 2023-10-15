@@ -240,28 +240,28 @@ def check_det_dataset(dataset, autodownload=True):
 
     # Parse yaml
     train, val, test, s = (data.get(x) for x in ('train', 'val', 'test', 'download'))
-    if val:
-        val = [Path(x).resolve() for x in (val if isinstance(val, list) else [val])]  # val path
-        if not all(x.exists() for x in val):
-            name = clean_url(dataset)  # dataset name with URL auth stripped
-            m = f"\nDataset '{name}' images not found ⚠️, missing paths %s" % [str(x) for x in val if not x.exists()]
-            if s and autodownload:
-                LOGGER.warning(m)
-            else:
-                m += f"\nNote dataset download directory is '{DATASETS_DIR}'. You can update this in '{SETTINGS_YAML}'"
-                raise FileNotFoundError(m)
-            t = time.time()
-            if s.startswith('http') and s.endswith('.zip'):  # URL
-                safe_download(url=s, dir=DATASETS_DIR, delete=True)
-                r = None  # success
-            elif s.startswith('bash '):  # bash script
-                LOGGER.info(f'Running {s} ...')
-                r = os.system(s)
-            else:  # python script
-                r = exec(s, {'yaml': data})  # return None
-            dt = f'({round(time.time() - t, 1)}s)'
-            s = f"success ✅ {dt}, saved to {colorstr('bold', DATASETS_DIR)}" if r in (0, None) else f'failure {dt} ❌'
-            LOGGER.info(f'Dataset download {s}\n')
+    # if val:
+    #     val = [Path(x).resolve() for x in (val if isinstance(val, list) else [val])]  # val path
+    #     if not all(x.exists() for x in val):
+    #         name = clean_url(dataset)  # dataset name with URL auth stripped
+    #         m = f"\nDataset '{name}' images not found ⚠️, missing paths %s" % [str(x) for x in val if not x.exists()]
+    #         if s and autodownload:
+    #             LOGGER.warning(m)
+    #         else:
+    #             m += f"\nNote dataset download directory is '{DATASETS_DIR}'. You can update this in '{SETTINGS_YAML}'"
+    #             raise FileNotFoundError(m)
+    #         t = time.time()
+    #         if s.startswith('http') and s.endswith('.zip'):  # URL
+    #             safe_download(url=s, dir=DATASETS_DIR, delete=True)
+    #             r = None  # success
+    #         elif s.startswith('bash '):  # bash script
+    #             LOGGER.info(f'Running {s} ...')
+    #             r = os.system(s)
+    #         else:  # python script
+    #             r = exec(s, {'yaml': data})  # return None
+    #         dt = f'({round(time.time() - t, 1)}s)'
+    #         s = f"success ✅ {dt}, saved to {colorstr('bold', DATASETS_DIR)}" if r in (0, None) else f'failure {dt} ❌'
+    #         LOGGER.info(f'Dataset download {s}\n')
     check_font('Arial.ttf' if is_ascii(data['names']) else 'Arial.Unicode.ttf')  # download fonts
 
     return data  # dictionary
