@@ -227,7 +227,7 @@ class TrackNetValidator(BaseValidator):
 
     def get_stats(self):
         """Return the stats."""
-        return {'FN': self.FN, 'FP': self.FP, 'TN': self.TN, 'TP': self.TP}
+        return {'FN': self.FN, 'FP': self.FP, 'TN': self.TN, 'TP': self.TP, 'acc': self.acc}
     
     def print_results(self):
         """Print the results."""
