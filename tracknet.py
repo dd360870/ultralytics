@@ -34,7 +34,7 @@ import matplotlib.patches as patches
 #imagePath = r"C:\Users\user1\bartek\github\BartekTao\ultralytics\tracknet\train_data"
 #modelPath = r'C:\Users\user1\bartek\github\BartekTao\ultralytics\ultralytics\models\v8\tracknetv4.yaml'
 
-weight = 10
+weight = 100
 class TrackNetV4(DetectionModel):
     def init_criterion(self):
         return TrackNetLoss(self)
