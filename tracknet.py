@@ -34,6 +34,7 @@ import matplotlib.patches as patches
 #imagePath = r"C:\Users\user1\bartek\github\BartekTao\ultralytics\tracknet\train_data"
 #modelPath = r'C:\Users\user1\bartek\github\BartekTao\ultralytics\ultralytics\models\v8\tracknetv4.yaml'
 
+weight = 10
 class TrackNetV4(DetectionModel):
     def init_criterion(self):
         return TrackNetLoss(self)
@@ -81,7 +82,7 @@ class TrackNetLoss:
 
                     ## cls
                     cls_targets[idx, grid_y, grid_x] = 1
-            weight = 10
+            
             loss[0] += weight * F.mse_loss(pred_distri, targets, reduction='mean')
             loss[1] += focal_loss(pred_scores, cls_targets, alpha=[0.94, 0.06], weight=weight)
 
@@ -428,7 +429,8 @@ class TrackNetDataset(Dataset):
 # # Evaluate the model's performance on the validation set
 # results = model.val()
 
-def main(model_path, mode, data, epochs, plots, batch):
+def main(model_path, mode, data, epochs, plots, batch, weight):
+    weight = weight
     overrides = {}
     overrides['model'] = model_path
     overrides['mode'] = mode
@@ -449,6 +451,7 @@ if __name__ == "__main__":
     parser.add_argument('--epochs', type=int, default=3, help='Number of epochs')
     parser.add_argument('--plots', type=bool, default=False, help='Whether to plot or not')
     parser.add_argument('--batch', type=int, default=20, help='Batch size')
+    parser.add_argument('--weight', type=int, default=100, help='weight')
     
     args = parser.parse_args()
-    main(args.model_path, args.mode, args.data, args.epochs, args.plots, args.batch)
+    main(args.model_path, args.mode, args.data, args.epochs, args.plots, args.batch, args.weight)
