@@ -488,7 +488,7 @@ def main(model_path, mode, data, epochs, plots, batch, source):
         end_time = time.time()
         elapsed_time = (end_time - start_time) * 1000
 
-        print(f"程序運行了 {elapsed_time:.2f} 毫秒, 平均{10*batch}張圖片 {(elapsed_time)/len(dataloader):.2f} ms")
+        print(f"程序運行了 {elapsed_time:.2f} 毫秒, 平均一個batch {(elapsed_time)/len(dataloader):.2f} ms")
         
 
 if __name__ == "__main__":
