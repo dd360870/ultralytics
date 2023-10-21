@@ -478,6 +478,7 @@ def main(model_path, mode, data, epochs, plots, batch, source):
         pbar = enumerate(dataloader)
         start_time = time.time()
         for i, batch in pbar:
+            print(f"round {i}\n")
             input_data = batch['img']
             if torch.cuda.is_available():
                 input_data = input_data.cuda()
