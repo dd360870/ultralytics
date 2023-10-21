@@ -2,15 +2,18 @@
 import argparse
 from copy import copy
 import os
+import time
 import numpy as np
 import torch
 import torch.nn as nn
 from ultralytics.yolo.data import dataloaders
 from ultralytics.yolo.data.build import build_dataloader
+from ultralytics.yolo.engine.model import YOLO
+from ultralytics.yolo.engine.predictor import BasePredictor
 from ultralytics.yolo.engine.validator import BaseValidator
 from ultralytics.yolo.utils.metrics import ConfusionMatrix, DetMetrics
 from ultralytics.yolo.v8.detect.train import DetectionTrainer
-from ultralytics.nn.tasks import DetectionModel
+from ultralytics.nn.tasks import DetectionModel, attempt_load_one_weight
 from ultralytics.yolo.utils import LOGGER, RANK, ops
 import torchvision.transforms as transforms
 from torch.utils.data import Dataset
@@ -30,6 +33,7 @@ from ultralytics.yolo.utils.loss import v8ClassificationLoss, v8DetectionLoss, v
 from ultralytics.yolo.utils.tal import TaskAlignedAssigner, dist2bbox, make_anchors
 import matplotlib.pyplot as plt
 import matplotlib.patches as patches
+from pathlib import Path
 
 #imagePath = r"C:\Users\user1\bartek\github\BartekTao\ultralytics\tracknet\train_data"
 #modelPath = r'C:\Users\user1\bartek\github\BartekTao\ultralytics\ultralytics\models\v8\tracknetv4.yaml'
@@ -417,6 +421,26 @@ class TrackNetDataset(Dataset):
 
         return img
 
+class TrackNetPredictor(BasePredictor):
+    def postprocess(self, preds, img, orig_imgs):
+        """Postprocesses predictions and returns a list of Results objects."""
+        preds = ops.non_max_suppression(preds,
+                                        self.args.conf,
+                                        self.args.iou,
+                                        agnostic=self.args.agnostic_nms,
+                                        max_det=self.args.max_det,
+                                        classes=self.args.classes)
+
+        results = []
+        for i, pred in enumerate(preds):
+            orig_img = orig_imgs[i] if isinstance(orig_imgs, list) else orig_imgs
+            if not isinstance(orig_imgs, torch.Tensor):
+                pred[:, :4] = ops.scale_boxes(img.shape[2:], pred[:, :4], orig_img.shape)
+            path = self.batch[0]
+            img_path = path[i] if isinstance(path, list) else path
+            results.append(Results(orig_img=orig_img, path=img_path, names=self.model.names, boxes=pred))
+        return results
+
 # from ultralytics import YOLO
 
 # # Create a new YOLO model from scratch
@@ -429,8 +453,7 @@ class TrackNetDataset(Dataset):
 # # Evaluate the model's performance on the validation set
 # results = model.val()
 
-def main(model_path, mode, data, epochs, plots, batch, weight):
-    weight = weight
+def main(model_path, mode, data, epochs, plots, batch, source):
     overrides = {}
     overrides['model'] = model_path
     overrides['mode'] = mode
@@ -438,9 +461,32 @@ def main(model_path, mode, data, epochs, plots, batch, weight):
     overrides['epochs'] = epochs
     overrides['plots'] = plots
     overrides['batch'] = batch
-    trainer = TrackNetTrainer(overrides=overrides)
-    trainer.add_callback("on_train_epoch_end", log_model)  # Adds to existing callback
-    trainer.train()
+    if mode == 'train':
+        trainer = TrackNetTrainer(overrides=overrides)
+        trainer.add_callback("on_train_epoch_end", log_model)  # Adds to existing callback
+        trainer.train()
+    elif mode == 'predict':
+        model, _ = attempt_load_one_weight(model_path)
+        if torch.cuda.is_available():
+            model.cuda()
+        dataset = TrackNetDataset(root_dir=source)
+        dataloader = build_dataloader(dataset, 1, 0, shuffle=False, rank=-1)
+        overrides = overrides.copy()
+        overrides['save'] = False
+        predictor = TrackNetPredictor(overrides=overrides)
+        predictor.setup_model(model=model, verbose=False)
+        pbar = enumerate(dataloader)
+        start_time = time.time()
+        for i, batch in pbar:
+            input_data = batch['img']
+            if torch.cuda.is_available():
+                input_data = input_data.cuda()
+            preds = model(input_data)
+        end_time = time.time()
+        elapsed_time = (end_time - start_time) * 1000
+
+        print(f"程序運行了 {elapsed_time:.2f} 毫秒, 平均10張圖片 {(elapsed_time)/len(dataloader):.2f} ms")
+        
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train a custom model with overrides.')
@@ -451,7 +497,9 @@ if __name__ == "__main__":
     parser.add_argument('--epochs', type=int, default=3, help='Number of epochs')
     parser.add_argument('--plots', type=bool, default=False, help='Whether to plot or not')
     parser.add_argument('--batch', type=int, default=20, help='Batch size')
-    parser.add_argument('--weight', type=int, default=100, help='weight')
+    parser.add_argument('--source', type=str, default=r'C:\Users\user1\bartek\github\BartekTao\datasets\tracknet\train_data', help='source')
     
     args = parser.parse_args()
-    main(args.model_path, args.mode, args.data, args.epochs, args.plots, args.batch, args.weight)
+    args.mode = 'predict'
+    args.model_path = r'C:\Users\user1\bartek\github\BartekTao\ultralytics\runs\detect\train261\weights\best.pt'
+    main(args.model_path, args.mode, args.data, args.epochs, args.plots, args.batch, args.source)
