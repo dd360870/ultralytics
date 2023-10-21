@@ -467,10 +467,12 @@ def main(model_path, mode, data, epochs, plots, batch, source):
         trainer.train()
     elif mode == 'predict':
         model, _ = attempt_load_one_weight(model_path)
+        worker = 0
         if torch.cuda.is_available():
             model.cuda()
+            worker = 1
         dataset = TrackNetDataset(root_dir=source)
-        dataloader = build_dataloader(dataset, 1, 0, shuffle=False, rank=-1)
+        dataloader = build_dataloader(dataset, 1, worker, shuffle=False, rank=-1)
         overrides = overrides.copy()
         overrides['save'] = False
         predictor = TrackNetPredictor(overrides=overrides)
