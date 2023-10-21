@@ -500,6 +500,4 @@ if __name__ == "__main__":
     parser.add_argument('--source', type=str, default=r'C:\Users\user1\bartek\github\BartekTao\datasets\tracknet\train_data', help='source')
     
     args = parser.parse_args()
-    args.mode = 'predict'
-    args.model_path = r'C:\Users\user1\bartek\github\BartekTao\ultralytics\runs\detect\train261\weights\best.pt'
     main(args.model_path, args.mode, args.data, args.epochs, args.plots, args.batch, args.source)
