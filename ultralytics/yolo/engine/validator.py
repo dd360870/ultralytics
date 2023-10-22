@@ -185,7 +185,9 @@ class BaseValidator:
         self.run_callbacks('on_val_end')
         if self.training:
             model.float()
-            results = {**stats, **trainer.label_loss_items(self.loss.cpu() / len(self.dataloader), prefix='val')}
+            ls = self.loss.cpu() / len(self.dataloader)
+            results = {**stats, **trainer.label_loss_items(ls, prefix='val')}
+            LOGGER.info(str(results))
             return {k: round(float(v), 5) for k, v in results.items()}  # return results as 5 decimal place floats
         else:
             LOGGER.info('Speed: %.1fms preprocess, %.1fms inference, %.1fms loss, %.1fms postprocess per image' %
