@@ -87,8 +87,10 @@ class TrackNetLoss:
                     ## cls
                     cls_targets[idx, grid_y, grid_x] = 1
             
-            loss[0] += weight * F.mse_loss(pred_distri, targets, reduction='mean')
-            loss[1] += focal_loss(pred_scores, cls_targets, alpha=[0.94, 0.06], weight=weight)
+            position_loss = weight * F.mse_loss(pred_distri, targets, reduction='mean')
+            conf_loss = focal_loss(pred_scores, cls_targets, alpha=[0.94, 0.06], weight=weight)
+            loss[0] += position_loss
+            loss[1] += conf_loss
 
         return loss.sum() * batch_size, loss.detach()
 
@@ -138,7 +140,12 @@ class TrackNetTrainer(DetectionTrainer):
         batch['img'] = batch['img'].to(self.device, non_blocking=True).float() / 255
         return batch
     def get_validator(self):
+        self.loss_names = 'pos_loss', 'conf_loss'
         return TrackNetValidator(self.test_loader, save_dir=self.save_dir, args=copy(self.args))
+    def progress_string(self):
+        """Returns a formatted string of training progress with epoch, GPU memory, loss, instances and size."""
+        return ('\n' + '%11s' *
+                (3 + len(self.loss_names))) % ('Epoch', 'GPU_mem', *self.loss_names, 'Size')
 
 
 def log_model(trainer):
@@ -181,6 +188,11 @@ class TrackNetValidator(BaseValidator):
         self.num_samples = 0
     
     def update_metrics(self, preds, batch):
+        self.TP = 0
+        self.TN = 0
+        self.FP = 0
+        self.FN = 0
+        self.acc = 0
         """Calculate and update metrics based on predictions and batch."""
         # Placeholder for loss calculation, etc.
         # preds = [[10*50*40*40]]
@@ -243,7 +255,7 @@ class TrackNetValidator(BaseValidator):
             precision = self.TP/(self.TP+self.FP)
             recall = self.TP/(self.TP+self.FN)
             f1 = (2*precision*recall)/(precision+recall)
-        print(f"Validation Loss: {self.loss}Validation Accuracy: {self.acc:.4f}, Validation Precision: {precision:.4f}, Validation Recall: {recall:.4f}, , Validation F1-Score: {f1:.4f}")
+        print(f"Validation Accuracy: {self.acc:.4f}, Validation Precision: {precision:.4f}, Validation Recall: {recall:.4f}, , Validation F1-Score: {f1:.4f}")
 
     def get_desc(self):
         """Return a description for tqdm progress bar."""
