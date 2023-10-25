@@ -72,7 +72,7 @@ class TrackNetLoss:
             # pred = [50 * 80 * 80]
             pred_distri, pred_scores = torch.split(pred, [40, 10], dim=0)
 
-            targets = pred_distri.clone()
+            targets = pred_distri.clone().detach().to(self.device)
             cls_targets = torch.zeros(10, pred_scores.shape[1], pred_scores.shape[2], device=self.device)
             stride = self.stride[0]
             for idx, target in enumerate(batch_target[idx]):
@@ -88,7 +88,7 @@ class TrackNetLoss:
                     cls_targets[idx, grid_y, grid_x] = 1
             
             position_loss = weight * F.mse_loss(pred_distri, targets, reduction='mean')
-            conf_loss = focal_loss(pred_scores, cls_targets, alpha=[0.94, 0.06], weight=weight)
+            conf_loss = focal_loss(pred_scores, cls_targets, alpha=[0.94, 0.06], weight=weight*10)
             loss[0] += position_loss
             loss[1] += conf_loss
         tlose = loss.sum() * batch_size
