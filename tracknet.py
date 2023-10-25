@@ -112,7 +112,7 @@ def focal_loss(pred_logits, targets, alpha=0.95, gamma=2.0, epsilon=1e-8, weight
     :return: focal loss
     """
     pred_probs = torch.sigmoid(pred_logits)
-    # pred_probs = torch.clamp(pred_probs, epsilon, 1.0 - epsilon)
+    pred_probs = torch.clamp(pred_probs, epsilon, 1.0)  # log(0) 會導致無窮大
     if isinstance(alpha, (list, tuple)):
         alpha_neg = alpha[0]
         alpha_pos = alpha[1]
@@ -123,7 +123,7 @@ def focal_loss(pred_logits, targets, alpha=0.95, gamma=2.0, epsilon=1e-8, weight
     pt = torch.where(targets == 1, pred_probs, 1 - pred_probs)
     alpha_t = torch.where(targets == 1, alpha_pos, alpha_neg)
     
-    ce_loss = -torch.log(pt + epsilon) # log(0) 會導致無窮大
+    ce_loss = -torch.log(pt)
     if torch.isinf(ce_loss).any():
         LOGGER.warning("ce_loss value is infinite!")
     fl = alpha_t * (1 - pt) ** gamma * ce_loss
