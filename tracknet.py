@@ -94,6 +94,11 @@ class TrackNetLoss:
             
             position_loss = weight * F.mse_loss(pred_distri, targets, reduction='mean')
             conf_loss = focal_loss(pred_scores, cls_targets, alpha=[0.94, 0.06], weight=weight*10)
+            if torch.isnan(position_loss).any() or torch.isinf(position_loss).any():
+                LOGGER.warning("NaN or Inf values in position_loss!")
+            if torch.isnan(conf_loss).any() or torch.isinf(conf_loss).any():
+                LOGGER.warning("NaN or Inf values in conf_loss!")
+
             loss[0] += position_loss
             loss[1] += conf_loss
         tlose = loss.sum() * batch_size
