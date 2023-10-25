@@ -331,15 +331,10 @@ class BaseTrainer:
                 with torch.cuda.amp.autocast(self.amp):
                     batch = self.preprocess_batch(batch)
                     self.loss, self.loss_items = self.model(batch)
-                    if self.tloss is not None:
-                        LOGGER.info("self.tloss is not None")
-                    print(self.loss_items)
-                    print("\n")
                     if RANK != -1:
                         self.loss *= world_size
                     self.tloss = (self.tloss * i + self.loss_items) / (i + 1) if self.tloss is not None \
                         else self.loss_items
-                    print(self.tloss)
 
                 # Backward
                 self.scaler.scale(self.loss).backward()
