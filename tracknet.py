@@ -93,7 +93,7 @@ class TrackNetLoss:
             loss[1] += conf_loss
         tlose = loss.sum() * batch_size
         tlose_item = loss.detach()
-        # LOGGER.info(f'tloss: {tlose}, tlose_item: {tlose_item}')
+        LOGGER.info(f'tloss: {tlose}, tlose_item: {tlose_item}')
         return tlose, tlose_item
 
 def targetGrid(target_x, target_y, stride):
