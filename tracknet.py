@@ -103,7 +103,7 @@ def targetGrid(target_x, target_y, stride):
     offset_y = (target_y % stride)
     return grid_x, grid_y, offset_x, offset_y
 
-def focal_loss(pred_logits, targets, alpha=0.95, gamma=2.0, epsilon=1e-6, weight=10):
+def focal_loss(pred_logits, targets, alpha=0.95, gamma=2.0, epsilon=1e-5, weight=10):
     """
     :param pred_logits: 預測的logits, shape [batch_size, 1, H, W]
     :param targets: 真實標籤, shape [batch_size, 1, H, W]
@@ -116,11 +116,12 @@ def focal_loss(pred_logits, targets, alpha=0.95, gamma=2.0, epsilon=1e-6, weight
     if torch.isinf(pred_logits).any():
         LOGGER.warning("Inf values in pred_logits!")
     pred_probs = torch.sigmoid(pred_logits)
+
     if torch.isnan(pred_probs).any():
         LOGGER.warning("NaN values in pred_probs!")
-
     if torch.isinf(pred_probs).any():
         LOGGER.warning("Inf values in pred_probs!")
+
     pred_probs = torch.clamp(pred_probs, epsilon, 1.0)  # log(0) 會導致無窮大
     if isinstance(alpha, (list, tuple)):
         alpha_neg = alpha[0]
