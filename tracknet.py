@@ -72,7 +72,7 @@ class TrackNetLoss:
             # pred = [50 * 80 * 80]
             pred_distri, pred_scores = torch.split(pred, [40, 10], dim=0)
 
-            targets = pred_distri.clone().detach().to(self.device)
+            targets = pred_distri.clone()
             cls_targets = torch.zeros(10, pred_scores.shape[1], pred_scores.shape[2], device=self.device)
             stride = self.stride[0]
             for idx, target in enumerate(batch_target[idx]):
@@ -93,6 +93,7 @@ class TrackNetLoss:
             loss[1] += conf_loss
         tlose = loss.sum() * batch_size
         tlose_item = loss.detach()
+        LOGGER.info(f'tloss: {tlose}, tlose_item: {tlose_item}')
         return tlose, tlose_item
 
 def targetGrid(target_x, target_y, stride):
@@ -129,10 +130,11 @@ def focal_loss(pred_logits, targets, alpha=0.95, gamma=2.0, epsilon=1e-8, weight
     if (targets == 1).sum() > 0:
         foreground_loss = fl[targets == 1].mean() * weight
     background_loss = fl[targets == 0].mean()
-    t_conf_loss = foreground_loss+background_loss
-    if t_conf_loss < 0:
-        LOGGER.warning("t_conf_loss < 0")
-    return t_conf_loss
+
+    combined_loss = (1 - alpha_pos) * foreground_loss + alpha_pos * background_loss
+    if combined_loss < 0:
+        LOGGER.warning("combined_loss < 0")
+    return combined_loss
 
 
 class TrackNetTrainer(DetectionTrainer):
