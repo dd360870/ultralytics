@@ -91,8 +91,10 @@ class TrackNetLoss:
             conf_loss = focal_loss(pred_scores, cls_targets, alpha=[0.94, 0.06], weight=weight)
             loss[0] += position_loss
             loss[1] += conf_loss
-
-        return loss.sum() * batch_size, loss.detach()
+        tlose = loss.sum() * batch_size
+        tlose_item = loss.detach()
+        LOGGER.info(f'tloss: {tlose}, tlose_item: {tlose_item}')
+        return tlose, tlose_item
 
 def targetGrid(target_x, target_y, stride):
     grid_x = int(target_x / stride)
