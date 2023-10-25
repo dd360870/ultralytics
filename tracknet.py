@@ -124,8 +124,10 @@ def focal_loss(pred_logits, targets, alpha=0.95, gamma=2.0, epsilon=1e-8, weight
     
     ce_loss = -torch.log(pt + epsilon) # log(0) 會導致無窮大
     fl = alpha_t * (1 - pt) ** gamma * ce_loss
-    # fl = torch.where(targets == 1, fl * weight, fl)
-    foreground_loss = fl[targets == 1].mean() * weight
+    
+    foreground_loss = 0
+    if (targets == 1).sum() > 0:
+        foreground_loss = fl[targets == 1].mean() * weight
     background_loss = fl[targets == 0].mean()
     LOGGER.info(f'foreground_loss: {foreground_loss}, background_loss: {background_loss}')
     return foreground_loss+background_loss
