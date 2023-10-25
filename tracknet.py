@@ -65,42 +65,51 @@ class TrackNetLoss:
         preds = preds[0].to(self.device) # only pick first (stride = 16)
         batch_target = batch['target'].to(self.device)
 
-        loss = torch.zeros(2, device=self.device)  # box, cls, dfl
+        loss = torch.zeros(3, device=self.device)  # box, cls, dfl
         batch_size = preds.shape[0]
         # for each batch
         for idx, pred in enumerate(preds):
             # pred = [50 * 80 * 80]
+            stride = self.stride[0]
             pred_distri, pred_scores = torch.split(pred, [40, 10], dim=0)
-            if torch.isnan(pred_distri).any() or torch.isinf(pred_distri).any():
-                LOGGER.warning("NaN or Inf values in pred_distri!")
+            pred_pos, pred_mov = torch.split(pred_distri, [20, 20], dim=0)
+            pred_pos = torch.sigmoid(pred_pos)
+            pred_mov = torch.sigmoid(pred_mov)*stride
             
-            targets = pred_distri.clone() #.detach().to(self.device)
-            if torch.isnan(targets).any() or torch.isinf(targets).any():
-                LOGGER.warning("NaN or Inf values in targets!")
+            targets_pos = pred_pos.clone() #.detach().to(self.device)
+            targets_mov = pred_mov.clone() #.detach().to(self.device)
+            if torch.isnan(targets_pos).any() or torch.isinf(targets_pos).any():
+                LOGGER.warning("NaN or Inf values in targets_pos!")
             
             cls_targets = torch.zeros(10, pred_scores.shape[1], pred_scores.shape[2], device=self.device)
-            stride = self.stride[0]
+            
             for idx, target in enumerate(batch_target[idx]):
                 if target[1] == 1:
                     # xy
                     grid_x, grid_y, offset_x, offset_y = targetGrid(target[2], target[3], stride)
-                    targets[4*idx, grid_y, grid_x] = offset_x
-                    targets[4*idx + 1, grid_y, grid_x] = offset_y
-                    targets[4*idx + 2, grid_y, grid_x] = target[4]
-                    targets[4*idx + 3, grid_y, grid_x] = target[5]
+                    targets_pos[2*idx, grid_y, grid_x] = offset_x/stride
+                    targets_pos[2*idx + 1, grid_y, grid_x] = offset_y/stride
+
+                    targets_mov[2*idx, grid_y, grid_x] = target[4]/stride
+                    targets_mov[2*idx + 1, grid_y, grid_x] = target[5]/stride
 
                     ## cls
                     cls_targets[idx, grid_y, grid_x] = 1
 
-            mask = (pred_distri != targets)
             position_loss = torch.tensor(0.0, device=self.device)
-            if mask.any():
-                masked_pred_distri = pred_distri[mask]
-                masked_targets = targets[mask]
-                print(f"masked_pred_distri min: {masked_pred_distri.min()}, max: {masked_pred_distri.max()}")
-                print(f"masked_targets min: {masked_targets.min()}, max: {masked_targets.max()}")
-                mse_loss = F.mse_loss(masked_pred_distri, masked_targets, reduction='mean')
+            move_loss = torch.tensor(0.0, device=self.device)
+
+            pos_mask = (pred_pos != targets_pos)
+            if pos_mask.any():
+                masked_error = (pred_pos - targets_pos) * pos_mask
+                mse_loss = (masked_error ** 2).sum() / pos_mask.float().sum()
                 position_loss = weight * mse_loss
+                
+            mov_mask = (pred_mov != targets_mov)
+            if mov_mask.any():
+                masked_error = (pred_mov - targets_mov) * mov_mask
+                mse_loss = (masked_error ** 2).sum() / mov_mask.float().sum()
+                move_loss = weight * mse_loss
 
             conf_loss = focal_loss(pred_scores, cls_targets, alpha=[0.94, 0.06], weight=weight*10)
             if torch.isnan(position_loss).any() or torch.isinf(position_loss).any():
@@ -109,7 +118,8 @@ class TrackNetLoss:
                 LOGGER.warning("NaN or Inf values in conf_loss!")
 
             loss[0] += position_loss
-            loss[1] += conf_loss
+            loss[1] += move_loss
+            loss[2] += conf_loss
         tlose = loss.sum() * batch_size
         tlose_item = loss.detach()
         # LOGGER.info(f'tloss: {tlose}, tlose_item: {tlose_item}')
@@ -172,7 +182,7 @@ class TrackNetTrainer(DetectionTrainer):
         batch['img'] = batch['img'].to(self.device, non_blocking=True).float() / 255
         return batch
     def get_validator(self):
-        self.loss_names = 'pos_loss', 'conf_loss'
+        self.loss_names = 'pos_loss', 'mov_loss', 'conf_loss'
         return TrackNetValidator(self.test_loader, save_dir=self.save_dir, args=copy(self.args))
     def progress_string(self):
         """Returns a formatted string of training progress with epoch, GPU memory, loss, instances and size."""
