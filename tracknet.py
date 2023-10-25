@@ -111,7 +111,16 @@ def focal_loss(pred_logits, targets, alpha=0.95, gamma=2.0, epsilon=1e-6, weight
     :param gamma: 用於調節著重於正確或錯誤預測的程度
     :return: focal loss
     """
+    if torch.isnan(pred_logits).any():
+        LOGGER.warning("NaN values in pred_logits!")
+    if torch.isinf(pred_logits).any():
+        LOGGER.warning("Inf values in pred_logits!")
     pred_probs = torch.sigmoid(pred_logits)
+    if torch.isnan(pred_probs).any():
+        LOGGER.warning("NaN values in pred_probs!")
+
+    if torch.isinf(pred_probs).any():
+        LOGGER.warning("Inf values in pred_probs!")
     pred_probs = torch.clamp(pred_probs, epsilon, 1.0)  # log(0) 會導致無窮大
     if isinstance(alpha, (list, tuple)):
         alpha_neg = alpha[0]
