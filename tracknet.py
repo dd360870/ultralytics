@@ -133,7 +133,9 @@ def focal_loss(pred_logits, targets, alpha=0.95, gamma=2.0, epsilon=1e-5, weight
     pt = torch.where(targets == 1, pred_probs, 1 - pred_probs)
     alpha_t = torch.where(targets == 1, alpha_pos, alpha_neg)
     
+    print(f"pt min: {pt.min()}, pt max: {pt.max()}, pt mean: {pt.mean()}")
     ce_loss = -torch.log(pt)
+    print(f"ce_loss min: {ce_loss.min()}, ce_loss max: {ce_loss.max()}, ce_loss mean: {ce_loss.mean()}")
     if torch.isinf(ce_loss).any():
         LOGGER.warning("ce_loss value is infinite!")
     fl = alpha_t * (1 - pt) ** gamma * ce_loss
