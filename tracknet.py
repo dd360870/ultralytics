@@ -103,7 +103,7 @@ def targetGrid(target_x, target_y, stride):
     offset_y = (target_y % stride)
     return grid_x, grid_y, offset_x, offset_y
 
-def focal_loss(pred_logits, targets, alpha=0.95, gamma=2.0, epsilon=1e-4, weight=10):
+def focal_loss(pred_logits, targets, alpha=0.95, gamma=2.0, epsilon=1e-2, weight=10):
     """
     :param pred_logits: 預測的logits, shape [batch_size, 1, H, W]
     :param targets: 真實標籤, shape [batch_size, 1, H, W]
