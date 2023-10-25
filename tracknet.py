@@ -93,7 +93,7 @@ class TrackNetLoss:
             loss[1] += conf_loss
         tlose = loss.sum() * batch_size
         tlose_item = loss.detach()
-        LOGGER.info(f'tloss: {tlose}, tlose_item: {tlose_item}')
+        #LOGGER.info(f'tloss: {tlose}, tlose_item: {tlose_item}')
         return tlose, tlose_item
 
 def targetGrid(target_x, target_y, stride):
@@ -103,7 +103,7 @@ def targetGrid(target_x, target_y, stride):
     offset_y = (target_y % stride)
     return grid_x, grid_y, offset_x, offset_y
 
-def focal_loss(pred_logits, targets, alpha=0.95, gamma=4.0, epsilon=1e-6, weight=10):
+def focal_loss(pred_logits, targets, alpha=0.95, gamma=2.0, epsilon=1e-8, weight=10):
     """
     :param pred_logits: 預測的logits, shape [batch_size, 1, H, W]
     :param targets: 真實標籤, shape [batch_size, 1, H, W]
@@ -123,10 +123,12 @@ def focal_loss(pred_logits, targets, alpha=0.95, gamma=4.0, epsilon=1e-6, weight
     pt = torch.where(targets == 1, pred_probs, 1 - pred_probs)
     alpha_t = torch.where(targets == 1, alpha_pos, alpha_neg)
     
-    ce_loss = -torch.log(pt)
+    ce_loss = -torch.log(pt + epsilon) # log(0) 會導致無窮大
     fl = alpha_t * (1 - pt) ** gamma * ce_loss
-    fl = torch.where(targets == 1, fl * weight, fl)
-    return fl.mean()
+    # fl = torch.where(targets == 1, fl * weight, fl)
+    foreground_loss = fl[targets == 1].mean() * weight
+    background_loss = fl[targets == 0].mean()
+    return foreground_loss+background_loss
 
 
 class TrackNetTrainer(DetectionTrainer):
