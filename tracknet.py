@@ -97,7 +97,8 @@ class TrackNetLoss:
             if mask.any():
                 masked_pred_distri = pred_distri[mask]
                 masked_targets = targets[mask]
-
+                print(f"masked_pred_distri min: {masked_pred_distri.min()}, max: {masked_pred_distri.max()}")
+                print(f"masked_targets min: {masked_targets.min()}, max: {masked_targets.max()}")
                 mse_loss = F.mse_loss(masked_pred_distri, masked_targets, reduction='mean')
                 position_loss = weight * mse_loss
 
