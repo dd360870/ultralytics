@@ -93,7 +93,6 @@ class TrackNetLoss:
             loss[1] += conf_loss
         tlose = loss.sum() * batch_size
         tlose_item = loss.detach()
-        #LOGGER.info(f'tloss: {tlose}, tlose_item: {tlose_item}')
         return tlose, tlose_item
 
 def targetGrid(target_x, target_y, stride):
@@ -128,6 +127,7 @@ def focal_loss(pred_logits, targets, alpha=0.95, gamma=2.0, epsilon=1e-8, weight
     # fl = torch.where(targets == 1, fl * weight, fl)
     foreground_loss = fl[targets == 1].mean() * weight
     background_loss = fl[targets == 0].mean()
+    LOGGER.info(f'foreground_loss: {foreground_loss}, background_loss: {background_loss}')
     return foreground_loss+background_loss
 
 
