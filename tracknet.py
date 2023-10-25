@@ -521,7 +521,7 @@ if __name__ == "__main__":
     parser.add_argument('--data', type=str, default='tracknet.yaml', help='Data configuration (e.g., tracknet.yaml)')
     parser.add_argument('--epochs', type=int, default=3, help='Number of epochs')
     parser.add_argument('--plots', type=bool, default=False, help='Whether to plot or not')
-    parser.add_argument('--batch', type=int, default=20, help='Batch size')
+    parser.add_argument('--batch', type=int, default=16, help='Batch size')
     parser.add_argument('--source', type=str, default=r'C:\Users\user1\bartek\github\BartekTao\datasets\tracknet\train_data', help='source')
     
     args = parser.parse_args()
