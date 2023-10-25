@@ -91,13 +91,15 @@ class TrackNetLoss:
 
                     ## cls
                     cls_targets[idx, grid_y, grid_x] = 1
-                    
-            mask = (pred_distri != targets)
-            masked_pred_distri = pred_distri[mask]
-            masked_targets = targets[mask]
 
-            mse_loss = F.mse_loss(masked_pred_distri, masked_targets, reduction='mean')
-            position_loss = weight * mse_loss
+            mask = (pred_distri != targets)
+            position_loss = 0.0
+            if mask.any():
+                masked_pred_distri = pred_distri[mask]
+                masked_targets = targets[mask]
+
+                mse_loss = F.mse_loss(masked_pred_distri, masked_targets, reduction='mean')
+                position_loss = weight * mse_loss
 
             conf_loss = focal_loss(pred_scores, cls_targets, alpha=[0.94, 0.06], weight=weight*10)
             if torch.isnan(position_loss).any() or torch.isinf(position_loss).any():
@@ -129,7 +131,7 @@ def focal_loss(pred_logits, targets, alpha=0.95, gamma=2.0, epsilon=1e-3, weight
     """
     pred_probs = torch.sigmoid(pred_logits)
 
-    pred_probs = torch.clamp(pred_probs, epsilon, 1-epsilon)  # log(0) 會導致無窮大
+    pred_probs = torch.clamp(pred_probs, epsilon, 1.0-epsilon)  # log(0) 會導致無窮大
     if isinstance(alpha, (list, tuple)):
         alpha_neg = alpha[0]
         alpha_pos = alpha[1]
