@@ -1,6 +1,7 @@
 
 import argparse
 from copy import copy
+import math
 import os
 import time
 import numpy as np
@@ -124,6 +125,8 @@ def focal_loss(pred_logits, targets, alpha=0.95, gamma=2.0, epsilon=1e-8, weight
     alpha_t = torch.where(targets == 1, alpha_pos, alpha_neg)
     
     ce_loss = -torch.log(pt + epsilon) # log(0) 會導致無窮大
+    if math.isinf(ce_loss):
+        LOGGER.warning("ce_loss value is infinite!")
     fl = alpha_t * (1 - pt) ** gamma * ce_loss
 
     foreground_loss = 0
