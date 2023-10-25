@@ -122,7 +122,7 @@ def focal_loss(pred_logits, targets, alpha=0.95, gamma=2.0, epsilon=0.1, weight=
     if torch.isinf(pred_probs).any():
         LOGGER.warning("Inf values in pred_probs!")
 
-    pred_probs = torch.clamp(pred_probs, epsilon, 1)  # log(0) 會導致無窮大
+    pred_probs = torch.clamp(pred_probs, epsilon, 1-epsilon)  # log(0) 會導致無窮大
     if isinstance(alpha, (list, tuple)):
         alpha_neg = alpha[0]
         alpha_pos = alpha[1]
