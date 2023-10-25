@@ -109,7 +109,7 @@ class TrackNetLoss:
             if mov_mask.any():
                 masked_error = (pred_mov - targets_mov) * mov_mask
                 mse_loss = (masked_error ** 2).sum() / mov_mask.float().sum()
-                move_loss = weight * mse_loss
+                move_loss = mse_loss
 
             conf_loss = focal_loss(pred_scores, cls_targets, alpha=[0.94, 0.06], weight=weight*10)
             if torch.isnan(position_loss).any() or torch.isinf(position_loss).any():
