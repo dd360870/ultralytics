@@ -111,16 +111,7 @@ def focal_loss(pred_logits, targets, alpha=0.95, gamma=2.0, epsilon=1e-3, weight
     :param gamma: 用於調節著重於正確或錯誤預測的程度
     :return: focal loss
     """
-    if torch.isnan(pred_logits).any():
-        LOGGER.warning("NaN values in pred_logits!")
-    if torch.isinf(pred_logits).any():
-        LOGGER.warning("Inf values in pred_logits!")
     pred_probs = torch.sigmoid(pred_logits)
-
-    if torch.isnan(pred_probs).any():
-        LOGGER.warning("NaN values in pred_probs!")
-    if torch.isinf(pred_probs).any():
-        LOGGER.warning("Inf values in pred_probs!")
 
     pred_probs = torch.clamp(pred_probs, epsilon, 1-epsilon)  # log(0) 會導致無窮大
     if isinstance(alpha, (list, tuple)):
@@ -133,11 +124,9 @@ def focal_loss(pred_logits, targets, alpha=0.95, gamma=2.0, epsilon=1e-3, weight
     pt = torch.where(targets == 1, pred_probs, 1 - pred_probs)
     alpha_t = torch.where(targets == 1, alpha_pos, alpha_neg)
     
-    print(f"pt min: {pt.min()}, pt max: {pt.max()}, pt mean: {pt.mean()}")
     ce_loss = -torch.log(pt)
-    print(f"ce_loss min: {ce_loss.min()}, ce_loss max: {ce_loss.max()}, ce_loss mean: {ce_loss.mean()}")
-    if torch.isinf(ce_loss).any():
-        LOGGER.warning("ce_loss value is infinite!")
+    # if torch.isinf(ce_loss).any():
+    #     LOGGER.warning("ce_loss value is infinite!")
     fl = alpha_t * (1 - pt) ** gamma * ce_loss
 
     foreground_loss = 0
