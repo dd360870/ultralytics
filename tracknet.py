@@ -93,7 +93,7 @@ class TrackNetLoss:
                     cls_targets[idx, grid_y, grid_x] = 1
 
             mask = (pred_distri != targets)
-            position_loss = 0.0
+            position_loss = torch.tensor(0.0, device=self.device)
             if mask.any():
                 masked_pred_distri = pred_distri[mask]
                 masked_targets = targets[mask]
