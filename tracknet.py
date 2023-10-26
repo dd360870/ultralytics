@@ -268,8 +268,8 @@ class TrackNetValidator(BaseValidator):
                 # print(max_positions[idx])
                 if pred_probs[idx][max_positions[idx]] > 0.5:
                     x, y = max_positions[idx]
-                    real_x = x*16 + pred_distri[idx][x][y]
-                    real_y = y*16 + pred_distri[idx][x][y]
+                    real_x = x*16 + pred_distri[idx][x][y]*16
+                    real_y = y*16 + pred_distri[idx][x][y]*16
                     if (grid_x, grid_y) == max_positions[idx]:
                         self.TP+=1
                     else:
