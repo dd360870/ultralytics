@@ -541,7 +541,7 @@ def main(model_path, mode, data, epochs, plots, batch, source):
             preds = model(input_data)
             end_time = time.time()
             elapsed_time = (end_time - start_time) * 1000
-            print(f'{{elapsed_time:.2f}}ms')
+            print(f'{elapsed_time:.2f}ms')
             elapsed_times+=elapsed_time
 
         print(f"程序運行了 {elapsed_times:.2f} 毫秒, 平均一個batch {(elapsed_times)/len(dataloader):.2f} ms")
