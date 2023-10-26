@@ -257,8 +257,8 @@ class TrackNetValidator(BaseValidator):
         final_max_values, max_indices_dim2 = max_values_dim1.max(dim=1)
         max_positions = [(index.item(), max_indices_dim1[i, index].item()) for i, index in enumerate(max_indices_dim2)]
 
-        targets = pred_distri.clone().detach()
-        cls_targets = torch.zeros(10, pred_scores.shape[1], pred_scores.shape[2])
+        #targets = pred_distri.clone().detach()
+        #cls_targets = torch.zeros(10, pred_scores.shape[1], pred_scores.shape[2])
         stride = 16
         for idx, target in enumerate(batch_target[batch_idx]):
             if target[1] == 1:
@@ -532,17 +532,19 @@ def main(model_path, mode, data, epochs, plots, batch, source):
         predictor = TrackNetPredictor(overrides=overrides)
         predictor.setup_model(model=model, verbose=False)
         pbar = enumerate(dataloader)
-        start_time = time.time()
+        elapsed_times = 0.0
         for i, batch in pbar:
-            print(f"round {i}\n")
             input_data = batch['img']
             if torch.cuda.is_available():
                 input_data = input_data.cuda()
+            start_time = time.time()
             preds = model(input_data)
-        end_time = time.time()
-        elapsed_time = (end_time - start_time) * 1000
+            end_time = time.time()
+            elapsed_time = (end_time - start_time) * 1000
+            print(f'{{elapsed_time:.2f}}ms')
+            elapsed_times+=elapsed_time
 
-        print(f"程序運行了 {elapsed_time:.2f} 毫秒, 平均一個batch {(elapsed_time)/len(dataloader):.2f} ms")
+        print(f"程序運行了 {elapsed_times:.2f} 毫秒, 平均一個batch {(elapsed_times)/len(dataloader):.2f} ms")
         
 
 if __name__ == "__main__":
