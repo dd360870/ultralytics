@@ -74,7 +74,7 @@ class TrackNetLoss:
             pred_distri, pred_scores = torch.split(pred, [40, 10], dim=0)
             pred_pos, pred_mov = torch.split(pred_distri, [20, 20], dim=0)
             pred_pos = torch.sigmoid(pred_pos)
-            pred_mov = torch.sigmoid(pred_mov)*stride
+            pred_mov = torch.sigmoid(pred_mov)
             
             targets_pos = pred_pos.clone() #.detach().to(self.device)
             targets_mov = pred_mov.clone() #.detach().to(self.device)
@@ -90,8 +90,8 @@ class TrackNetLoss:
                     targets_pos[2*idx, grid_y, grid_x] = offset_x/stride
                     targets_pos[2*idx + 1, grid_y, grid_x] = offset_y/stride
 
-                    targets_mov[2*idx, grid_y, grid_x] = target[4]/stride
-                    targets_mov[2*idx + 1, grid_y, grid_x] = target[5]/stride
+                    targets_mov[2*idx, grid_y, grid_x] = target[4]/640
+                    targets_mov[2*idx + 1, grid_y, grid_x] = target[5]/640
 
                     ## cls
                     cls_targets[idx, grid_y, grid_x] = 1
@@ -259,7 +259,7 @@ class TrackNetValidator(BaseValidator):
 
         #targets = pred_distri.clone().detach()
         #cls_targets = torch.zeros(10, pred_scores.shape[1], pred_scores.shape[2])
-        stride = 16
+        stride = 32
         for idx, target in enumerate(batch_target[batch_idx]):
             if target[1] == 1:
                 # xy
@@ -268,8 +268,8 @@ class TrackNetValidator(BaseValidator):
                 # print(max_positions[idx])
                 if pred_probs[idx][max_positions[idx]] > 0.5:
                     x, y = max_positions[idx]
-                    real_x = x*16 + pred_distri[idx][x][y]*16
-                    real_y = y*16 + pred_distri[idx][x][y]*16
+                    real_x = x*stride + pred_distri[idx][x][y]*stride
+                    real_y = y*stride + pred_distri[idx][x][y]*stride
                     if (grid_x, grid_y) == max_positions[idx]:
                         self.TP+=1
                     else:
