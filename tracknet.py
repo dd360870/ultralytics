@@ -260,7 +260,7 @@ class TrackNetValidator(BaseValidator):
         preds = preds[0] # only pick first (stride = 16)
         batch_target = batch['target']
         batch_size = preds.shape[0]
-        if preds.shape == (50, 40, 40):
+        if preds.shape == (50, 20, 20):
             self.update_metrics_once(0, preds, batch_target)
         else:
             # for each batch
