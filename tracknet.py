@@ -38,7 +38,7 @@ from pathlib import Path
 #imagePath = r"C:\Users\user1\bartek\github\BartekTao\ultralytics\tracknet\train_data"
 #modelPath = r'C:\Users\user1\bartek\github\BartekTao\ultralytics\ultralytics\models\v8\tracknetv4.yaml'
 
-weight = 100
+weight = 1000
 class TrackNetV4(DetectionModel):
     def init_criterion(self):
         return TrackNetLoss(self)
@@ -74,7 +74,7 @@ class TrackNetLoss:
             pred_distri, pred_scores = torch.split(pred, [40, 10], dim=0)
             pred_pos, pred_mov = torch.split(pred_distri, [20, 20], dim=0)
             pred_pos = torch.sigmoid(pred_pos)
-            pred_mov = torch.sigmoid(pred_mov)
+            # pred_mov = torch.sigmoid(pred_mov)
             
             targets_pos = pred_pos.clone() #.detach().to(self.device)
             targets_mov = pred_mov.clone() #.detach().to(self.device)
@@ -90,8 +90,8 @@ class TrackNetLoss:
                     targets_pos[2*idx, grid_y, grid_x] = offset_x/stride
                     targets_pos[2*idx + 1, grid_y, grid_x] = offset_y/stride
 
-                    targets_mov[2*idx, grid_y, grid_x] = target[4]/640
-                    targets_mov[2*idx + 1, grid_y, grid_x] = target[5]/640
+                    targets_mov[2*idx, grid_y, grid_x] = target[4]
+                    targets_mov[2*idx + 1, grid_y, grid_x] = target[5]
 
                     ## cls
                     cls_targets[idx, grid_y, grid_x] = 1
@@ -107,8 +107,12 @@ class TrackNetLoss:
                 
             mov_mask = (pred_mov != targets_mov)
             if mov_mask.any():
-                masked_error = (pred_mov - targets_mov) * mov_mask
-                mse_loss = (masked_error ** 2).sum() / mov_mask.float().sum()
+                out_of_bounds = (pred_mov > 640) | (pred_mov < -640)
+                out_of_bounds_loss = 99999*out_of_bounds
+
+                target_mov_adjusted = torch.where(out_of_bounds, pred_mov, targets_mov)
+                masked_error = (pred_mov - target_mov_adjusted) * mov_mask
+                mse_loss = ((masked_error ** 2).sum() + out_of_bounds_loss.sum()) / (mov_mask.float().sum() + out_of_bounds.sum())
                 move_loss = mse_loss
 
             conf_loss = focal_loss(pred_scores, cls_targets, alpha=[0.94, 0.06], weight=weight*10)
@@ -163,7 +167,7 @@ def focal_loss(pred_logits, targets, alpha=0.95, gamma=2.0, epsilon=1e-3, weight
         foreground_loss = fl[targets == 1].mean() * weight
     background_loss = fl[targets == 0].mean()
 
-    combined_loss = (1 - alpha_pos) * foreground_loss + alpha_pos * background_loss
+    combined_loss = foreground_loss + background_loss
     if combined_loss < 0:
         LOGGER.warning("combined_loss < 0")
     return combined_loss
