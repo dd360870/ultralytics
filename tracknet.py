@@ -110,9 +110,9 @@ class TrackNetLoss:
                 out_of_bounds = (pred_mov > 640) | (pred_mov < -640)
                 out_of_bounds_loss = 100*out_of_bounds
 
-                target_mov_adjusted = torch.where(out_of_bounds, pred_mov, targets_mov)
-                masked_error = (pred_mov - target_mov_adjusted) * mov_mask
-                mse_loss = ((masked_error ** 2).sum() + out_of_bounds_loss.sum()) / (mov_mask.float().sum() + out_of_bounds.sum())
+                mov_adjusted = mov_mask & (~out_of_bounds)
+                masked_error = (pred_mov - targets_mov) * mov_adjusted
+                mse_loss = ((masked_error ** 2).sum() + out_of_bounds_loss.sum()) / (mov_adjusted.float().sum() + out_of_bounds.sum())
                 move_loss = mse_loss
 
             conf_loss = focal_loss(pred_scores, cls_targets, alpha=[0.94, 0.06], weight=weight)
