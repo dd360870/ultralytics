@@ -108,14 +108,14 @@ class TrackNetLoss:
             mov_mask = (pred_mov != targets_mov)
             if mov_mask.any():
                 out_of_bounds = (pred_mov > 640) | (pred_mov < -640)
-                out_of_bounds_loss = weight*out_of_bounds
+                out_of_bounds_loss = 100*out_of_bounds
 
                 target_mov_adjusted = torch.where(out_of_bounds, pred_mov, targets_mov)
                 masked_error = (pred_mov - target_mov_adjusted) * mov_mask
                 mse_loss = ((masked_error ** 2).sum() + out_of_bounds_loss.sum()) / (mov_mask.float().sum() + out_of_bounds.sum())
                 move_loss = mse_loss
 
-            conf_loss = focal_loss(pred_scores, cls_targets, alpha=[0.94, 0.06], weight=weight*10)
+            conf_loss = focal_loss(pred_scores, cls_targets, alpha=[0.94, 0.06], weight=weight)
             if torch.isnan(position_loss).any() or torch.isinf(position_loss).any():
                 LOGGER.warning("NaN or Inf values in position_loss!")
             if torch.isnan(conf_loss).any() or torch.isinf(conf_loss).any():
@@ -163,9 +163,24 @@ def focal_loss(pred_logits, targets, alpha=0.95, gamma=2.0, epsilon=1e-3, weight
     fl = alpha_t * (1 - pt) ** gamma * ce_loss
 
     foreground_loss = 0
+    background_loss = 0
     if (targets == 1).sum() > 0:
-        foreground_loss = fl[targets == 1].mean() * weight
-    background_loss = fl[targets == 0].mean()
+        mask1 = (targets == 1) & (pred_probs <= 0.6)
+        mask2 = (targets == 1) & (pred_probs > 0.6)
+        
+        if mask1.sum() > 0:
+            loss = fl[mask1].mean() * weight
+            foreground_loss += loss
+
+        if mask2.sum() > 0:
+            loss = fl[mask2].mean()
+            foreground_loss += loss
+    mask1 = (targets == 0) & (pred_probs <= 0.6)
+    mask2 = (targets == 0) & (pred_probs > 0.6)
+    if mask1.sum() > 0:
+        background_loss += fl[mask1].mean()
+    if mask2.sum() > 0:
+        background_loss += fl[mask2].mean() * weight
 
     combined_loss = foreground_loss + background_loss
     if combined_loss < 0:
