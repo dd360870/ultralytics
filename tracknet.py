@@ -108,7 +108,7 @@ class TrackNetLoss:
             mov_mask = (pred_mov != targets_mov)
             if mov_mask.any():
                 out_of_bounds = (pred_mov > 640) | (pred_mov < -640)
-                out_of_bounds_loss = 99999*out_of_bounds
+                out_of_bounds_loss = weight*out_of_bounds
 
                 target_mov_adjusted = torch.where(out_of_bounds, pred_mov, targets_mov)
                 masked_error = (pred_mov - target_mov_adjusted) * mov_mask
