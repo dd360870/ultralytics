@@ -38,7 +38,9 @@ from pathlib import Path
 #imagePath = r"C:\Users\user1\bartek\github\BartekTao\ultralytics\tracknet\train_data"
 #modelPath = r'C:\Users\user1\bartek\github\BartekTao\ultralytics\ultralytics\models\v8\tracknetv4.yaml'
 
-weight = 1000
+weight_pos = 1000
+weight_mov = 100
+weight_conf = 100
 class TrackNetV4(DetectionModel):
     def init_criterion(self):
         return TrackNetLoss(self)
@@ -103,19 +105,25 @@ class TrackNetLoss:
             if pos_mask.any():
                 masked_error = (pred_pos - targets_pos) * pos_mask
                 mse_loss = (masked_error ** 2).sum() / pos_mask.float().sum()
-                position_loss = weight * mse_loss
+                position_loss = weight_pos * mse_loss
                 
             mov_mask = (pred_mov != targets_mov)
             if mov_mask.any():
                 out_of_bounds = (pred_mov > 640) | (pred_mov < -640)
-                out_of_bounds_loss = 100*out_of_bounds
+                if out_of_bounds.any():
+                    out_of_bounds_loss = weight_mov*out_of_bounds
 
-                mov_adjusted = mov_mask & (~out_of_bounds)
-                masked_error = (pred_mov - targets_mov) * mov_adjusted
-                mse_loss = ((masked_error ** 2).sum() + out_of_bounds_loss.sum()) / (mov_adjusted.float().sum() + out_of_bounds.sum())
-                move_loss = mse_loss
+                    mov_adjusted = mov_mask & (~out_of_bounds)
+                    masked_error = (pred_mov - targets_mov) * mov_adjusted
+                    mse_loss = ((masked_error ** 2).sum() + out_of_bounds_loss.sum()) / (mov_adjusted.float().sum() + out_of_bounds.sum())
+                    move_loss = mse_loss
+                else:
+                    masked_error = (pred_mov - targets_mov) * mov_mask
+                    mse_loss = (masked_error ** 2).sum() / mov_mask.float().sum()
+                    move_loss = mse_loss
+                
 
-            conf_loss = focal_loss(pred_scores, cls_targets, alpha=[0.94, 0.06], weight=weight)
+            conf_loss = focal_loss(pred_scores, cls_targets, alpha=[0.94, 0.06], weight=weight_conf)
             if torch.isnan(position_loss).any() or torch.isinf(position_loss).any():
                 LOGGER.warning("NaN or Inf values in position_loss!")
             if torch.isnan(conf_loss).any() or torch.isinf(conf_loss).any():
