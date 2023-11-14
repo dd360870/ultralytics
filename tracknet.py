@@ -114,7 +114,7 @@ class TrackNetLoss:
                 move_loss = mse_loss
                 
 
-            conf_loss = focal_loss(pred_scores, cls_targets, alpha=[0.94, 0.06], weight=weight_conf)
+            conf_loss = focal_loss(pred_scores, cls_targets, alpha=[0.998, 0.002], weight=weight_conf)
             if torch.isnan(position_loss).any() or torch.isinf(position_loss).any():
                 LOGGER.warning("NaN or Inf values in position_loss!")
             if torch.isnan(conf_loss).any() or torch.isinf(conf_loss).any():
