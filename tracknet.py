@@ -38,9 +38,9 @@ from pathlib import Path
 #imagePath = r"C:\Users\user1\bartek\github\BartekTao\ultralytics\tracknet\train_data"
 #modelPath = r'C:\Users\user1\bartek\github\BartekTao\ultralytics\ultralytics\models\v8\tracknetv4.yaml'
 
-weight_pos = 1000
-weight_mov = 100
-weight_conf = 100
+weight_pos = 10
+weight_mov = 5
+weight_conf = 10
 class TrackNetV4(DetectionModel):
     def init_criterion(self):
         return TrackNetLoss(self)
@@ -71,12 +71,12 @@ class TrackNetLoss:
         batch_size = preds.shape[0]
         # for each batch
         for idx, pred in enumerate(preds):
-            # pred = [50 * 80 * 80]
+            # pred = [50 * 20 * 20]
             stride = self.stride[0]
             pred_distri, pred_scores = torch.split(pred, [40, 10], dim=0)
             pred_pos, pred_mov = torch.split(pred_distri, [20, 20], dim=0)
             pred_pos = torch.sigmoid(pred_pos)
-            # pred_mov = torch.sigmoid(pred_mov)
+            pred_mov = torch.tanh(pred_mov)
             
             targets_pos = pred_pos.clone() #.detach().to(self.device)
             targets_mov = pred_mov.clone() #.detach().to(self.device)
@@ -92,8 +92,8 @@ class TrackNetLoss:
                     targets_pos[2*idx, grid_y, grid_x] = offset_x/stride
                     targets_pos[2*idx + 1, grid_y, grid_x] = offset_y/stride
 
-                    targets_mov[2*idx, grid_y, grid_x] = target[4]
-                    targets_mov[2*idx + 1, grid_y, grid_x] = target[5]
+                    targets_mov[2*idx, grid_y, grid_x] = target[4]/640
+                    targets_mov[2*idx + 1, grid_y, grid_x] = target[5]/640
 
                     ## cls
                     cls_targets[idx, grid_y, grid_x] = 1
@@ -109,18 +109,9 @@ class TrackNetLoss:
                 
             mov_mask = (pred_mov != targets_mov)
             if mov_mask.any():
-                out_of_bounds = (pred_mov > 640) | (pred_mov < -640)
-                if out_of_bounds.any():
-                    out_of_bounds_loss = weight_mov*out_of_bounds
-
-                    mov_adjusted = mov_mask & (~out_of_bounds)
-                    masked_error = (pred_mov - targets_mov) * mov_adjusted
-                    mse_loss = ((masked_error ** 2).sum() + out_of_bounds_loss.sum()) / (mov_adjusted.float().sum() + out_of_bounds.sum())
-                    move_loss = mse_loss
-                else:
-                    masked_error = (pred_mov - targets_mov) * mov_mask
-                    mse_loss = (masked_error ** 2).sum() / mov_mask.float().sum()
-                    move_loss = mse_loss
+                masked_error = (pred_mov - targets_mov) * mov_mask
+                mse_loss = (masked_error ** 2).sum() / mov_mask.float().sum()
+                move_loss = mse_loss
                 
 
             conf_loss = focal_loss(pred_scores, cls_targets, alpha=[0.94, 0.06], weight=weight_conf)
@@ -169,6 +160,8 @@ def focal_loss(pred_logits, targets, alpha=0.95, gamma=2.0, epsilon=1e-3, weight
     # if torch.isinf(ce_loss).any():
     #     LOGGER.warning("ce_loss value is infinite!")
     fl = alpha_t * (1 - pt) ** gamma * ce_loss
+    test = fl.mean() * weight_conf
+    return test
 
     foreground_loss = 0
     background_loss = 0
@@ -279,6 +272,10 @@ class TrackNetValidator(BaseValidator):
         # pred = [50 * 40 * 40]
         pred_distri, pred_scores = torch.split(pred, [40, 10], dim=0)
         pred_probs = torch.sigmoid(pred_scores)
+        
+        pred_pos, pred_mov = torch.split(pred_distri, [20, 20], dim=0)
+        pred_pos = torch.sigmoid(pred_pos)
+        pred_mov = torch.tanh(pred_mov)
 
         max_values_dim1, max_indices_dim1 = pred_probs.max(dim=2)
         final_max_values, max_indices_dim2 = max_values_dim1.max(dim=1)
@@ -295,8 +292,8 @@ class TrackNetValidator(BaseValidator):
                 # print(max_positions[idx])
                 if pred_probs[idx][max_positions[idx]] > 0.5:
                     x, y = max_positions[idx]
-                    real_x = x*stride + pred_distri[idx][x][y]*stride
-                    real_y = y*stride + pred_distri[idx][x][y]*stride
+                    real_x = x*stride + pred_pos[idx][x][y]*stride
+                    real_y = y*stride + pred_pos[idx][x][y]*stride
                     if (grid_x, grid_y) == max_positions[idx]:
                         self.TP+=1
                     else:
