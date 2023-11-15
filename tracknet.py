@@ -38,8 +38,8 @@ from pathlib import Path
 #imagePath = r"C:\Users\user1\bartek\github\BartekTao\ultralytics\tracknet\train_data"
 #modelPath = r'C:\Users\user1\bartek\github\BartekTao\ultralytics\ultralytics\models\v8\tracknetv4.yaml'
 
-weight_pos = 10
-weight_mov = 5
+weight_pos = 100
+weight_mov = 50
 weight_conf = 10
 class TrackNetV4(DetectionModel):
     def init_criterion(self):
@@ -52,7 +52,8 @@ class TrackNetLoss:
         h = model.args  # hyperparameters
 
         m = model.model[-1]  # Detect() module
-        self.bce = nn.BCEWithLogitsLoss(reduction='none')
+        pos_weight = torch.tensor([400])
+        self.bce = nn.BCEWithLogitsLoss(reduction='none', pos_weight=pos_weight)
         self.hyp = h
         self.stride = m.stride  # model strides
         self.nc = m.nc  # number of classes
@@ -113,8 +114,8 @@ class TrackNetLoss:
                 mse_loss = (masked_error ** 2).sum() / mov_mask.float().sum()
                 move_loss = mse_loss
                 
-
-            conf_loss = focal_loss(pred_scores, cls_targets, alpha=[0.998, 0.002], weight=weight_conf)
+            conf_loss = self.bce(pred_scores, cls_targets).sum()
+            # conf_loss = focal_loss(pred_scores, cls_targets, alpha=[0.998, 0.002], weight=weight_conf)
             if torch.isnan(position_loss).any() or torch.isinf(position_loss).any():
                 LOGGER.warning("NaN or Inf values in position_loss!")
             if torch.isnan(conf_loss).any() or torch.isinf(conf_loss).any():
