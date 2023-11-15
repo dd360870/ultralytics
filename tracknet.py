@@ -114,8 +114,9 @@ class TrackNetLoss:
                 masked_error = (pred_mov - targets_mov) * mov_mask
                 mse_loss = (masked_error ** 2).sum() / mov_mask.float().sum()
                 move_loss = mse_loss
-                
-            conf_loss = self.bce(pred_scores, cls_targets.to(self.device)).sum()
+            
+            target_scores_sum = max(cls_targets.sum(), 1)
+            conf_loss = self.bce(pred_scores, cls_targets).sum() / target_scores_sum
             # conf_loss = focal_loss(pred_scores, cls_targets, alpha=[0.998, 0.002], weight=weight_conf)
             if torch.isnan(position_loss).any() or torch.isinf(position_loss).any():
                 LOGGER.warning("NaN or Inf values in position_loss!")
