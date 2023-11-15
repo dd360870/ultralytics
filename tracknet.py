@@ -64,7 +64,8 @@ class TrackNetLoss:
         self.use_dfl = m.reg_max > 1
 
     def __call__(self, preds, batch):
-        # preds = [[10*50*80*80]]
+        # preds = [[batch*50*20*20]]
+        # batch['target'] = [batch*10*6]
         preds = preds[0].to(self.device) # only pick first (stride = 16)
         batch_target = batch['target'].to(self.device)
 
@@ -86,18 +87,18 @@ class TrackNetLoss:
             
             cls_targets = torch.zeros(10, pred_scores.shape[1], pred_scores.shape[2], device=self.device)
             
-            for idx, target in enumerate(batch_target[idx]):
+            for target_idx, target in enumerate(batch_target[idx]):
                 if target[1] == 1:
                     # xy
                     grid_x, grid_y, offset_x, offset_y = targetGrid(target[2], target[3], stride)
-                    targets_pos[2*idx, grid_y, grid_x] = offset_x/stride
-                    targets_pos[2*idx + 1, grid_y, grid_x] = offset_y/stride
+                    targets_pos[2*target_idx, grid_y, grid_x] = offset_x/stride
+                    targets_pos[2*target_idx + 1, grid_y, grid_x] = offset_y/stride
 
-                    targets_mov[2*idx, grid_y, grid_x] = target[4]/640
-                    targets_mov[2*idx + 1, grid_y, grid_x] = target[5]/640
+                    targets_mov[2*target_idx, grid_y, grid_x] = target[4]/640
+                    targets_mov[2*target_idx + 1, grid_y, grid_x] = target[5]/640
 
                     ## cls
-                    cls_targets[idx, grid_y, grid_x] = 1
+                    cls_targets[target_idx, grid_y, grid_x] = 1
 
             position_loss = torch.tensor(0.0, device=self.device)
             move_loss = torch.tensor(0.0, device=self.device)
@@ -249,17 +250,20 @@ class TrackNetValidator(BaseValidator):
         # Placeholder for any metrics you might want to use.
         self.total_loss = 0.0
         self.num_samples = 0
-    
-    def update_metrics(self, preds, batch):
         self.TP = 0
         self.TN = 0
         self.FP = 0
         self.FN = 0
         self.acc = 0
+        self.hasMax = 0
+        self.hasBall = 0
+    
+    def update_metrics(self, preds, batch):
         """Calculate and update metrics based on predictions and batch."""
         # Placeholder for loss calculation, etc.
-        # preds = [[10*50*40*40]]
-        preds = preds[0] # only pick first (stride = 16)
+        # preds = [[batch*50*20*20]]
+        # batch['target'] = [batch*10*6]
+        preds = preds[0] # only pick first (stride = 32)
         batch_target = batch['target']
         batch_size = preds.shape[0]
         if preds.shape == (50, 20, 20):
@@ -267,17 +271,19 @@ class TrackNetValidator(BaseValidator):
         else:
             # for each batch
             for idx, pred in enumerate(preds):
-                self.update_metrics_once(idx, pred, batch_target)
+                self.update_metrics_once(idx, pred, batch_target[idx])
         #print((self.TP, self.FP, self.FN))
     def update_metrics_once(self, batch_idx, pred, batch_target):
-        # pred = [50 * 40 * 40]
+        # pred = [50 * 20 * 20]
+        # batch_target = [10*6]
         pred_distri, pred_scores = torch.split(pred, [40, 10], dim=0)
         # pred_probs = torch.sigmoid(pred_scores)
+        # pred_probs = [10*20*20]
         pred_probs = pred_scores
         
         pred_pos, pred_mov = torch.split(pred_distri, [20, 20], dim=0)
-        pred_pos = torch.sigmoid(pred_pos)
-        pred_mov = torch.tanh(pred_mov)
+        # pred_pos = torch.sigmoid(pred_pos)
+        # pred_mov = torch.tanh(pred_mov)
 
         max_values_dim1, max_indices_dim1 = pred_probs.max(dim=2)
         final_max_values, max_indices_dim2 = max_values_dim1.max(dim=1)
@@ -286,16 +292,25 @@ class TrackNetValidator(BaseValidator):
         #targets = pred_distri.clone().detach()
         #cls_targets = torch.zeros(10, pred_scores.shape[1], pred_scores.shape[2])
         stride = 32
-        for idx, target in enumerate(batch_target[batch_idx]):
+        for idx, target in enumerate(batch_target):
             if target[1] == 1:
                 # xy
                 grid_x, grid_y, offset_x, offset_y = targetGrid(target[2], target[3], stride)
+                if (grid_x > 20 or grid_y > 20):
+                    LOGGER.Warning("target grid transform error")
+                if (pred_probs[idx][grid_x][grid_y] > 0.5):
+                    self.hasBall += 1
+                
+                # print(f"target: {(grid_x, grid_y, offset_x, offset_y)}, ")
+                # print(f"predict_conf: {pred_probs[idx][grid_x][grid_y]}, ")
+                # print(f"pred_pos: {pred_pos[idx][grid_x][grid_y]}")
                 # print(pred_probs[idx][max_positions[idx]])
                 # print(max_positions[idx])
                 if pred_probs[idx][max_positions[idx]] > 0.5:
+                    self.hasMax += 1
                     x, y = max_positions[idx]
-                    real_x = x*stride + pred_pos[idx][x][y]*stride
-                    real_y = y*stride + pred_pos[idx][x][y]*stride
+                    real_x = x*stride + pred_pos[idx][x][y] #*stride
+                    real_y = y*stride + pred_pos[idx][x][y] #*stride
                     if (grid_x, grid_y) == max_positions[idx]:
                         self.TP+=1
                     else:
@@ -312,7 +327,7 @@ class TrackNetValidator(BaseValidator):
 
     def get_stats(self):
         """Return the stats."""
-        return {'FN': self.FN, 'FP': self.FP, 'TN': self.TN, 'TP': self.TP, 'acc': self.acc}
+        return {'FN': self.FN, 'FP': self.FP, 'TN': self.TN, 'TP': self.TP, 'acc': self.acc, 'max_conf>0.5': self.hasMax, 'correct_cell>0.5':self.hasBall}
     
     def print_results(self):
         """Print the results."""
