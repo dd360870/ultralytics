@@ -78,7 +78,7 @@ class TrackNetLoss:
             pred_distri, pred_scores = torch.split(pred, [40, 10], dim=0)
             pred_pos, pred_mov = torch.split(pred_distri, [20, 20], dim=0)
             pred_pos = torch.sigmoid(pred_pos)
-            pred_mov = torch.tanh(pred_mov)
+            # pred_mov = torch.tanh(pred_mov)
             
             targets_pos = pred_pos.clone() #.detach().to(self.device)
             targets_mov = pred_mov.clone() #.detach().to(self.device)
@@ -94,8 +94,8 @@ class TrackNetLoss:
                     targets_pos[2*target_idx, grid_y, grid_x] = offset_x/stride
                     targets_pos[2*target_idx + 1, grid_y, grid_x] = offset_y/stride
 
-                    targets_mov[2*target_idx, grid_y, grid_x] = target[4]/640
-                    targets_mov[2*target_idx + 1, grid_y, grid_x] = target[5]/640
+                    targets_mov[2*target_idx, grid_y, grid_x] = target[4]
+                    targets_mov[2*target_idx + 1, grid_y, grid_x] = target[5]
 
                     ## cls
                     cls_targets[target_idx, grid_y, grid_x] = 1
