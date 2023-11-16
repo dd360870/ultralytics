@@ -278,9 +278,8 @@ class TrackNetValidator(BaseValidator):
         # pred = [50 * 20 * 20]
         # batch_target = [10*6]
         pred_distri, pred_scores = torch.split(pred, [40, 10], dim=0)
-        # pred_probs = torch.sigmoid(pred_scores)
+        pred_probs = torch.sigmoid(pred_scores)
         # pred_probs = [10*20*20]
-        pred_probs = pred_scores
         
         pred_pos, pred_mov = torch.split(pred_distri, [20, 20], dim=0)
         # pred_pos = torch.sigmoid(pred_pos)
