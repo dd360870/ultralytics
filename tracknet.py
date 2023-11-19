@@ -41,6 +41,10 @@ from pathlib import Path
 weight_pos = 100
 weight_mov = 50
 weight_conf = 10
+# check_training_img_path = r'C:\Users\user1\bartek\github\BartekTao\datasets\tracknet\check_training_img\img_'
+check_training_img_path = r'/usr/src/datasets/tracknet/visualize_train_img/img_'
+mode_flag = 'train'
+
 class TrackNetV4(DetectionModel):
     def init_criterion(self):
         return TrackNetLoss(self)
@@ -63,22 +67,44 @@ class TrackNetLoss:
 
         self.use_dfl = m.reg_max > 1
 
+        self.batch_count = 0
+
     def __call__(self, preds, batch):
         # preds = [[batch*50*20*20]]
         # batch['target'] = [batch*10*6]
         preds = preds[0].to(self.device) # only pick first (stride = 16)
         batch_target = batch['target'].to(self.device)
+        batch_img = batch['img'].to(self.device)
 
         loss = torch.zeros(3, device=self.device)  # box, cls, dfl
         batch_size = preds.shape[0]
+
+        # check
+        rand_batch = np.random.randint(0, 16) if batch_target.shape[0] == 16 else batch_target.shape[0]-1
+
         # for each batch
         for idx, pred in enumerate(preds):
             # pred = [50 * 20 * 20]
             stride = self.stride[0]
             pred_distri, pred_scores = torch.split(pred, [40, 10], dim=0)
             pred_pos, pred_mov = torch.split(pred_distri, [20, 20], dim=0)
+
             pred_pos = torch.sigmoid(pred_pos)
             pred_mov = torch.tanh(pred_mov)
+
+            # check
+            
+            if rand_batch == idx and mode_flag == 'train':
+                for rand_idx in range(5):
+                    pred_conf = torch.sigmoid(pred_scores[rand_idx])
+                    img = batch_img[rand_batch][rand_idx]
+                    x = (batch_target[rand_batch][rand_idx][2].item() // 32)*32
+                    y = (batch_target[rand_batch][rand_idx][3].item() // 32)*32
+                    max_position = torch.argmax(pred_conf)
+                    max_x, max_y = np.unravel_index(max_position, pred_conf.shape)
+                    filename = f'{self.batch_count//6}_{int(batch_target[rand_batch][rand_idx][0].item())}'
+                    display_image_with_coordinates(img, [(x, y)], [(max_x*32, max_y*32)], filename)
+
             
             targets_pos = pred_pos.clone() #.detach().to(self.device)
             targets_mov = pred_mov.clone() #.detach().to(self.device)
@@ -129,6 +155,7 @@ class TrackNetLoss:
         tlose = loss.sum() * batch_size
         tlose_item = loss.detach()
         # LOGGER.info(f'tloss: {tlose}, tlose_item: {tlose_item}')
+        self.batch_count+=1
         return tlose, tlose_item
 
 def targetGrid(target_x, target_y, stride):
@@ -247,6 +274,7 @@ class TrackNetValidator(BaseValidator):
         return preds
     
     def init_metrics(self, model):
+        mode_flag = 'valid'
         """Initialize some metrics."""
         # Placeholder for any metrics you might want to use.
         self.total_loss = 0.0
@@ -330,6 +358,8 @@ class TrackNetValidator(BaseValidator):
         return {'FN': self.FN, 'FP': self.FP, 'TN': self.TN, 'TP': self.TP, 'acc': self.acc, 'max_conf>0.5': self.hasMax, 'correct_cell>0.5':self.hasBall}
     
     def print_results(self):
+        mode_flag = 'train'
+
         """Print the results."""
         precision = 0
         recall = 0
@@ -548,6 +578,53 @@ class TrackNetPredictor(BasePredictor):
 # # Evaluate the model's performance on the validation set
 # results = model.val()
 
+def display_image_with_coordinates(img_tensor, coordinates, p_coordinates, fileName):
+    """
+    Display an image with annotated coordinates.
+
+    Parameters:
+    - img_tensor (torch.Tensor): The image tensor of shape (C, H, W) or (H, W, C).
+    - coordinates (list of tuples): A list of (X, Y) coordinates to be annotated.
+    """
+    
+    # Convert the image tensor to numpy array
+    img_array = img_tensor.cpu().numpy()
+
+    # Create a figure and axes
+    fig, ax = plt.subplots(1)
+
+    # Display the image
+    # ax.imshow(img_array)
+
+    img_height, img_width = img_array.shape[:2]
+
+    # Plot each coordinate
+    for (x, y) in coordinates:
+        ax.scatter(x, y, s=50, c='red', marker='o')
+        # Optionally, you can also draw a small rectangle around each point
+        rect = patches.Rectangle((x-5, y-5), 10, 10, linewidth=1, edgecolor='red', facecolor='none')
+        ax.add_patch(rect)
+
+    for (x, y) in p_coordinates:
+        ax.scatter(x, y, s=50, c='blue', marker='o')
+        # Optionally, you can also draw a small rectangle around each point
+        rect = patches.Rectangle((x-5, y-5), 10, 10, linewidth=1, edgecolor='blue', facecolor='none')
+        ax.add_patch(rect)
+
+    # for i in range(p_array.shape[0]):
+    #     for j in range(p_array.shape[1]):
+    #         # Scaling the coordinates
+    #         scaled_x = int(j * img_width / p_array.shape[1])
+    #         scaled_y = int(i * img_height / p_array.shape[0])
+
+    #         # Plotting the value
+    #         ax.text(scaled_x, scaled_y, str(p_array[i, j]), color='blue', fontsize=8)
+
+    # plt.show()
+
+    plt.savefig(check_training_img_path+fileName, bbox_inches='tight')
+    plt.close()
+
 def main(model_path, mode, data, epochs, plots, batch, source):
     overrides = {}
     overrides['model'] = model_path
@@ -556,6 +633,8 @@ def main(model_path, mode, data, epochs, plots, batch, source):
     overrides['epochs'] = epochs
     overrides['plots'] = plots
     overrides['batch'] = batch
+    overrides['patience'] = 300
+
     if mode == 'train':
         trainer = TrackNetTrainer(overrides=overrides)
         trainer.add_callback("on_train_epoch_end", log_model)  # Adds to existing callback
@@ -575,11 +654,41 @@ def main(model_path, mode, data, epochs, plots, batch, source):
         pbar = enumerate(dataloader)
         elapsed_times = 0.0
         for i, batch in pbar:
+            target = batch['target'][0]
             input_data = batch['img']
+            idx = np.random.randint(0, 10)
+            hasBall = target[idx][1].item()
+            t_x = target[idx][2].item()
+            t_y = target[idx][3].item()
+            xy = [(t_x, t_y)]
+            
             if torch.cuda.is_available():
                 input_data = input_data.cuda()
             start_time = time.time()
-            preds = model(input_data)
+
+            # [1*50*20*20]
+            p = predictor.inference(input_data)
+            # [5*20*20]
+            p_check = p[0, 5*idx:5*(idx+1), :]
+            p_conf = torch.sigmoid(p_check[4, :, :])
+            p_cell_x = torch.sigmoid(p_check[0, :, :])
+            p_cell_y = torch.sigmoid(p_check[1, :, :])
+
+            max_position = torch.argmax(p_conf)
+            max_x, max_y = np.unravel_index(max_position, p_conf.shape)
+            p_x = p_cell_x[max_x, max_y]*32
+            p_y = p_cell_y[max_x, max_y]*32
+            p_gridx = max_x*32 + p_cell_x[max_x, max_y]*32
+            p_gridy = max_y*32 + p_cell_y[max_x, max_y]*32
+            x, y, gx, gy = targetGrid(t_x, t_y, 32)
+
+            if hasBall and i%10 == 0:
+                pos_weight = torch.tensor([400])
+                l = nn.BCEWithLogitsLoss(reduction='none', pos_weight=pos_weight)
+                cls_targets = torch.zeros(p_conf.shape[0], p_conf.shape[1])
+                cls_targets[x][y] = 1
+                loss = l(p_check[4, :, :], cls_targets).sum()
+                display_image_with_coordinates(input_data[0][idx], [(x*32, y*32)], [(max_x*32, max_y*32)])
             end_time = time.time()
             elapsed_time = (end_time - start_time) * 1000
             print(f'{elapsed_time:.2f}ms')
@@ -600,4 +709,9 @@ if __name__ == "__main__":
     parser.add_argument('--source', type=str, default=r'C:\Users\user1\bartek\github\BartekTao\datasets\tracknet\train_data', help='source')
     
     args = parser.parse_args()
+    # args.epochs = 50
+    # args.batch = 1
+    # args.mode = 'predict'
+    # args.model_path = r'C:\Users\user1\bartek\github\BartekTao\ultralytics\runs\detect\prod_train71\weigths\last.pt'
+    # args.source = r'C:\Users\user1\bartek\github\BartekTao\datasets\tracknet\val_data'
     main(args.model_path, args.mode, args.data, args.epochs, args.plots, args.batch, args.source)
