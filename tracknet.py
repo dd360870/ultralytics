@@ -95,14 +95,14 @@ class TrackNetLoss:
             # check
             
             if rand_batch == idx and mode_flag == 'train':
-                for rand_idx in range(5):
+                for rand_idx in range(1):
                     pred_conf = torch.sigmoid(pred_scores[rand_idx]).cpu()
                     img = batch_img[rand_batch][rand_idx]
                     x = (batch_target[rand_batch][rand_idx][2].item() // 32)*32
                     y = (batch_target[rand_batch][rand_idx][3].item() // 32)*32
                     max_position = torch.argmax(pred_conf)
                     max_x, max_y = np.unravel_index(max_position, pred_conf.shape)
-                    filename = f'{self.batch_count//6}_{int(batch_target[rand_batch][rand_idx][0].item())}'
+                    filename = f'{self.batch_count//94}_{int(batch_target[rand_batch][rand_idx][0].item())}'
                     display_image_with_coordinates(img, [(x, y)], [(max_x*32, max_y*32)], filename)
 
             
