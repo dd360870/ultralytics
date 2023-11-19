@@ -594,7 +594,7 @@ def display_image_with_coordinates(img_tensor, coordinates, p_coordinates, fileN
     fig, ax = plt.subplots(1)
 
     # Display the image
-    # ax.imshow(img_array)
+    ax.imshow(img_array)
 
     img_height, img_width = img_array.shape[:2]
 
