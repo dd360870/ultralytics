@@ -102,7 +102,7 @@ class TrackNetLoss:
                     y = (batch_target[rand_batch][rand_idx][3].item() // 32)*32
                     max_position = torch.argmax(pred_conf)
                     max_x, max_y = np.unravel_index(max_position, pred_conf.shape)
-                    filename = f'{self.batch_count//94}_{int(batch_target[rand_batch][rand_idx][0].item())}'
+                    filename = f'{self.batch_count//979}_{int(batch_target[rand_batch][rand_idx][0].item())}'
                     display_image_with_coordinates(img, [(x, y)], [(max_x*32, max_y*32)], filename)
 
             
