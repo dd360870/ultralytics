@@ -94,7 +94,7 @@ class TrackNetLoss:
 
             # check
             
-            if rand_batch == idx and mode_flag == 'train' and idx%90 == 0:
+            if rand_batch == idx and mode_flag == 'train' and self.batch_count%90 == 0:
                 for rand_idx in range(1):
                     pred_conf = torch.sigmoid(pred_scores[rand_idx]).cpu()
                     img = batch_img[rand_batch][rand_idx]
