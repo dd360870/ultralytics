@@ -91,20 +91,6 @@ class TrackNetLoss:
 
             pred_pos = torch.sigmoid(pred_pos)
             pred_mov = torch.tanh(pred_mov)
-
-            # check
-            
-            if rand_batch == idx and mode_flag == 'train' and self.batch_count%90 == 0:
-                for rand_idx in range(1):
-                    pred_conf = torch.sigmoid(pred_scores[rand_idx]).cpu()
-                    img = batch_img[rand_batch][rand_idx]
-                    x = (batch_target[rand_batch][rand_idx][2].item() // 32)*32
-                    y = (batch_target[rand_batch][rand_idx][3].item() // 32)*32
-                    max_position = torch.argmax(pred_conf)
-                    max_x, max_y = np.unravel_index(max_position, pred_conf.shape)
-                    filename = f'{self.batch_count//979}_{int(self.batch_count%979)}'
-                    display_image_with_coordinates(img, [(x, y)], [(max_x*32, max_y*32)], filename)
-
             
             targets_pos = pred_pos.clone() #.detach().to(self.device)
             targets_mov = pred_mov.clone() #.detach().to(self.device)
@@ -148,6 +134,26 @@ class TrackNetLoss:
                 LOGGER.warning("NaN or Inf values in position_loss!")
             if torch.isnan(conf_loss).any() or torch.isinf(conf_loss).any():
                 LOGGER.warning("NaN or Inf values in conf_loss!")
+
+            # check
+            if rand_batch == idx and mode_flag == 'train' and self.batch_count%90 == 0:
+                for rand_idx in range(1):
+                    pred_conf = torch.sigmoid(pred_scores[rand_idx]).cpu()
+                    img = batch_img[rand_batch][rand_idx]
+                    x = (batch_target[rand_batch][rand_idx][2].item() // 32)*32
+                    y = (batch_target[rand_batch][rand_idx][3].item() // 32)*32
+                    max_position = torch.argmax(pred_conf)
+                    max_x, max_y = np.unravel_index(max_position, pred_conf.shape)
+                    filename = f'{self.batch_count//979}_{int(self.batch_count%979)}'
+
+                    count_ge_05 = np.count_nonzero(pred_conf >= 0.5)
+                    count_lt_05 = np.count_nonzero(pred_conf < 0.5)
+                    loss_list = [conf_loss.item()]
+                    loss_list.append(count_ge_05)
+                    loss_list.append(count_lt_05)
+                    loss_list.append(pred_conf[int(x/32)][int(y/32)])
+
+                    display_image_with_coordinates(img, [(x, y)], [(max_x*32, max_y*32)], filename, loss_list)
 
             loss[0] += position_loss
             loss[1] += move_loss
@@ -578,7 +584,7 @@ class TrackNetPredictor(BasePredictor):
 # # Evaluate the model's performance on the validation set
 # results = model.val()
 
-def display_image_with_coordinates(img_tensor, coordinates, p_coordinates, fileName):
+def display_image_with_coordinates(img_tensor, coordinates, p_coordinates, fileName, input_number = None):
     """
     Display an image with annotated coordinates.
 
@@ -619,7 +625,8 @@ def display_image_with_coordinates(img_tensor, coordinates, p_coordinates, fileN
 
     #         # Plotting the value
     #         ax.text(scaled_x, scaled_y, str(p_array[i, j]), color='blue', fontsize=8)
-
+    if input_number:
+        ax.text(img_width * 0.9, img_height * 0.1, str(input_number), color='black', fontsize=12, bbox=dict(facecolor='white', alpha=0.5))
     # plt.show()
 
     plt.savefig(check_training_img_path+fileName, bbox_inches='tight')
@@ -664,7 +671,7 @@ def main(model_path, mode, data, epochs, plots, batch, source):
             
             if torch.cuda.is_available():
                 input_data = input_data.cuda()
-            start_time = time.time()
+            #start_time = time.time()
 
             # [1*50*20*20]
             p = predictor.inference(input_data)
@@ -687,12 +694,21 @@ def main(model_path, mode, data, epochs, plots, batch, source):
                 l = nn.BCEWithLogitsLoss(reduction='none', pos_weight=pos_weight)
                 cls_targets = torch.zeros(p_conf.shape[0], p_conf.shape[1])
                 cls_targets[x][y] = 1
-                loss = l(p_check[4, :, :], cls_targets).sum()
-                display_image_with_coordinates(input_data[0][idx], [(x*32, y*32)], [(max_x*32, max_y*32)])
-            end_time = time.time()
-            elapsed_time = (end_time - start_time) * 1000
-            print(f'{elapsed_time:.2f}ms')
-            elapsed_times+=elapsed_time
+                cls_pred = p_check[4, :, :]
+                count_ge_05 = np.count_nonzero(p_conf >= 0.5)
+                count_lt_05 = np.count_nonzero(p_conf < 0.5)
+                correct = True if p_conf[x][y]>=0.5 else False
+                loss = l(cls_pred, cls_targets).sum()
+                loss_list = [loss.item()]
+                loss_list.append(count_ge_05)
+                loss_list.append(count_lt_05)
+                loss_list.append(correct)
+                loss_list.append(p_conf[x][y])
+                display_image_with_coordinates(input_data[0][idx], [(x*32, y*32)], [(max_x*32, max_y*32)], str(i), loss_list)
+            #end_time = time.time()
+            #elapsed_time = (end_time - start_time) * 1000
+            #print(f'{elapsed_time:.2f}ms')
+            #elapsed_times+=elapsed_time
 
         print(f"程序運行了 {elapsed_times:.2f} 毫秒, 平均一個batch {(elapsed_times)/len(dataloader):.2f} ms")
         
@@ -712,6 +728,6 @@ if __name__ == "__main__":
     # args.epochs = 50
     # args.batch = 1
     # args.mode = 'predict'
-    # args.model_path = r'C:\Users\user1\bartek\github\BartekTao\ultralytics\runs\detect\prod_train71\weigths\last.pt'
+    # args.model_path = r'C:\Users\user1\bartek\github\BartekTao\ultralytics\runs\detect\prod_train81\weigths\last.pt'
     # args.source = r'C:\Users\user1\bartek\github\BartekTao\datasets\tracknet\val_data'
     main(args.model_path, args.mode, args.data, args.epochs, args.plots, args.batch, args.source)
