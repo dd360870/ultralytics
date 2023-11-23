@@ -246,9 +246,8 @@ class TrackNetTrainer(DetectionTrainer):
                 (3 + len(self.loss_names))) % ('Epoch', 'GPU_mem', *self.loss_names, 'Size')
 
 
-def log_model(trainer):
-    last_weight_path = trainer.last
-    torch.save(trainer.model.state_dict(), last_weight_path)
+# def log_model(trainer):
+#     LOGGER.info()
 
 class TrackNetValidator(BaseValidator):
     def __init__(self, dataloader=None, save_dir=None, pbar=None, args=None, _callbacks=None):
@@ -644,7 +643,7 @@ def main(model_path, mode, data, epochs, plots, batch, source):
 
     if mode == 'train':
         trainer = TrackNetTrainer(overrides=overrides)
-        trainer.add_callback("on_train_epoch_end", log_model)  # Adds to existing callback
+        # trainer.add_callback("on_train_epoch_end", log_model)  # Adds to existing callback
         trainer.train()
     elif mode == 'predict':
         model, _ = attempt_load_one_weight(model_path)
