@@ -92,8 +92,8 @@ class TrackNetLoss:
             pred_pos = torch.sigmoid(pred_pos)
             pred_mov = torch.tanh(pred_mov)
             
-            targets_pos = pred_pos.clone() #.detach().to(self.device)
-            targets_mov = pred_mov.clone() #.detach().to(self.device)
+            targets_pos = pred_pos.clone().detach().to(self.device)
+            targets_mov = pred_mov.clone().detach().to(self.device)
             if torch.isnan(targets_pos).any() or torch.isinf(targets_pos).any():
                 LOGGER.warning("NaN or Inf values in targets_pos!")
             
