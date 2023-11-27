@@ -158,12 +158,12 @@ class BaseValidator:
                 batch = self.preprocess(batch)
 
             # Inference
-            with dt[1]:
+            with dt[1], torch.no_grad():
                 input_data = batch['img'].to(device=self.device, dtype=torch.half) if self.args.half else batch['img'].to(device=self.device)
                 preds = model(input_data, augment=self.args.augment)
 
             # Loss
-            with dt[2]:
+            with dt[2], torch.no_grad():
                 if self.training:
                     self.loss += model.loss(batch, preds)[1]
 
