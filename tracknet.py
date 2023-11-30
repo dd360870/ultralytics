@@ -120,14 +120,15 @@ class TrackNetLoss:
 
                     ## cls
                     cls_targets[target_idx, grid_y, grid_x] = 1
+            if len(pred_xy_list) > 0:
+                pred_xy_tensor = torch.stack(pred_xy_list, dim=0)
+                target_xy_tensor = torch.stack(target_xy_list, dim=0)
+                position_loss = self.mse(pred_xy_tensor, target_xy_tensor)
 
-            pred_xy_tensor = torch.stack(pred_xy_list, dim=0)
-            target_xy_tensor = torch.stack(target_xy_list, dim=0)
-            position_loss = self.mse(pred_xy_tensor, target_xy_tensor)
-
-            pred_dxdy_tensor = torch.stack(pred_dxdy_list, dim=0)
-            target_dxdy_tensor = torch.stack(target_dxdy_list, dim=0)
-            move_loss = self.mse(pred_dxdy_tensor, target_dxdy_tensor)
+            if len(pred_dxdy_list) > 0:
+                pred_dxdy_tensor = torch.stack(pred_dxdy_list, dim=0)
+                target_dxdy_tensor = torch.stack(target_dxdy_list, dim=0)
+                move_loss = self.mse(pred_dxdy_tensor, target_dxdy_tensor)
 
             target_scores_sum = max(cls_targets.sum(), 1)
             # test = torch.zeros(pred_scores.shape, device=self.device)
