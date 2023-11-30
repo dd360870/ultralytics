@@ -58,6 +58,7 @@ class TrackNetLoss:
         m = model.model[-1]  # Detect() module
         pos_weight = torch.tensor([400]).to(device)
         self.bce = nn.BCEWithLogitsLoss(reduction='none', pos_weight=pos_weight)
+        self.mse = nn.MSELoss()
         self.hyp = h
         self.stride = m.stride  # model strides
         self.nc = m.nc  # number of classes
@@ -92,42 +93,47 @@ class TrackNetLoss:
             pred_pos = torch.sigmoid(pred_pos)
             pred_mov = torch.tanh(pred_mov)
             
-            targets_pos = pred_pos.clone().detach().to(self.device)
-            targets_mov = pred_mov.clone().detach().to(self.device)
-            if torch.isnan(targets_pos).any() or torch.isinf(targets_pos).any():
-                LOGGER.warning("NaN or Inf values in targets_pos!")
+            cls_targets = torch.zeros(pred_scores.shape, device=self.device)
             
-            cls_targets = torch.zeros(10, pred_scores.shape[1], pred_scores.shape[2], device=self.device)
-            
+            position_loss = torch.tensor(0.0, device=self.device)
+            move_loss = torch.tensor(0.0, device=self.device)
+
+            pred_xy_list = []
+            target_xy_list = []
+
+            pred_dxdy_list = []
+            target_dxdy_list = []
             for target_idx, target in enumerate(batch_target[idx]):
                 if target[1] == 1:
                     # xy
                     grid_x, grid_y, offset_x, offset_y = targetGrid(target[2], target[3], stride)
-                    targets_pos[2*target_idx, grid_y, grid_x] = offset_x/stride
-                    targets_pos[2*target_idx + 1, grid_y, grid_x] = offset_y/stride
 
-                    targets_mov[2*target_idx, grid_y, grid_x] = target[4]/640
-                    targets_mov[2*target_idx + 1, grid_y, grid_x] = target[5]/640
+                    pred_x = pred_pos[2*target_idx, grid_y, grid_x]
+                    pred_y = pred_pos[2*target_idx + 1, grid_y, grid_x]
+                    pred_xy_list.append(torch.tensor([pred_x, pred_y]))
+                    target_xy_list.append(torch.tensor([offset_x/stride, offset_y/stride]))
+
+                    pred_dx = pred_mov[2*target_idx, grid_y, grid_x]
+                    pred_dy = pred_mov[2*target_idx + 1, grid_y, grid_x]
+                    pred_dxdy_list.append(torch.tensor([pred_dx, pred_dy]))
+                    target_dxdy_list.append(torch.tensor([target[4]/640, target[5]/640]))
 
                     ## cls
                     cls_targets[target_idx, grid_y, grid_x] = 1
 
-            position_loss = torch.tensor(0.0, device=self.device)
-            move_loss = torch.tensor(0.0, device=self.device)
+            pred_xy_tensor = torch.stack(pred_xy_list, dim=0)
+            target_xy_tensor = torch.stack(target_xy_list, dim=0)
+            position_loss = self.mse(pred_xy_tensor, target_xy_tensor)
 
-            pos_mask = (pred_pos != targets_pos)
-            if pos_mask.any():
-                masked_error = (pred_pos - targets_pos) * pos_mask
-                mse_loss = (masked_error ** 2).sum() / pos_mask.float().sum()
-                position_loss = weight_pos * mse_loss
-                
-            mov_mask = (pred_mov != targets_mov)
-            if mov_mask.any():
-                masked_error = (pred_mov - targets_mov) * mov_mask
-                mse_loss = (masked_error ** 2).sum() / mov_mask.float().sum()
-                move_loss = mse_loss
-            
+            pred_dxdy_tensor = torch.stack(pred_dxdy_list, dim=0)
+            target_dxdy_tensor = torch.stack(target_dxdy_list, dim=0)
+            move_loss = self.mse(pred_dxdy_tensor, target_dxdy_tensor)
+
             target_scores_sum = max(cls_targets.sum(), 1)
+            # test = torch.zeros(pred_scores.shape, device=self.device)
+            # target = torch.ones([10, 1], dtype=torch.float32)  # 64 classes, batch size = 10
+            # output = torch.full([10, 1], 1)  # A prediction (logit)
+            # conf_loss = self.bce(output, target).sum()
             conf_loss = self.bce(pred_scores, cls_targets).sum() / target_scores_sum
             # conf_loss = focal_loss(pred_scores, cls_targets, alpha=[0.998, 0.002], weight=weight_conf)
             if torch.isnan(position_loss).any() or torch.isinf(position_loss).any():
@@ -155,8 +161,8 @@ class TrackNetLoss:
 
                     display_image_with_coordinates(img, [(x, y)], [(max_x*32, max_y*32)], filename, loss_list)
 
-            loss[0] += position_loss
-            loss[1] += move_loss
+            loss[0] += position_loss * weight_pos
+            loss[1] += move_loss * weight_mov
             loss[2] += conf_loss
         tlose = loss.sum() * batch_size
         tlose_item = loss.detach()
