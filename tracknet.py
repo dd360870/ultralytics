@@ -191,7 +191,11 @@ def custom_loss(y_true, y_pred, class_weight):
                                                     (1 - y_true) * torch.log(torch.clamp(1 - y_pred, min=torch.finfo(y_pred.dtype).eps, max=1)))
     # penalty = (y_true * (1 - y_pred) * 1000)
 
-    return torch.sum(loss * y_true) / torch.sum(y_true) + torch.mean(loss * (1 - y_true))
+    sum = torch.sum(y_true)
+    if sum == 0:
+        return torch.mean(loss * (1 - y_true))
+    else:
+        return torch.sum(loss * y_true) / sum + torch.mean(loss * (1 - y_true))
 
 def focal_loss(pred_logits, targets, alpha=0.95, gamma=2.0, epsilon=1e-3, weight=10):
     """
