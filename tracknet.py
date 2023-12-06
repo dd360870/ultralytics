@@ -183,13 +183,14 @@ def targetGrid(target_x, target_y, stride):
 def custom_loss(y_true, y_pred, class_weight):
     y_pred = torch.sigmoid(y_pred)  
 
-    custom_weights = torch.square(1 - y_pred) * y_true + torch.square(y_pred) * (1 - y_true)
+    # custom_weights = torch.square(1 - y_pred) * y_true + torch.square(y_pred) * (1 - y_true)
+    custom_weights = (1 - y_pred) * y_true + (y_pred) * (1 - y_true)
 
     class_weights = class_weight[0] * (1 - y_true) + class_weight[1] * y_true
 
     loss = (-1) * class_weights * custom_weights * (y_true * torch.log(torch.clamp(y_pred, min=torch.finfo(y_pred.dtype).eps, max=1)) + 
                                                     (1 - y_true) * torch.log(torch.clamp(1 - y_pred, min=torch.finfo(y_pred.dtype).eps, max=1)))
-    penalty = (y_true * (1 - y_pred) * 1000)
+    penalty = (y_true * (1 - y_pred) * 5000)
 
     return torch.mean(loss+penalty)
 
