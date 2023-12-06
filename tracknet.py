@@ -40,7 +40,7 @@ from pathlib import Path
 
 weight_pos = 1
 weight_mov = 1
-weight_conf = 10
+weight_conf = 1000
 # check_training_img_path = r'C:\Users\user1\bartek\github\BartekTao\datasets\tracknet\check_training_img\img_'
 check_training_img_path = r'/usr/src/datasets/tracknet/visualize_train_img/img_'
 mode_flag = 'train'
@@ -137,7 +137,7 @@ class TrackNetLoss:
             # conf_loss = self.bce(output, target).sum()
             # conf_loss = self.bce(pred_scores, cls_targets).sum() / target_scores_sum
 
-            conf_loss = custom_loss(cls_targets, pred_scores, [1, 400])
+            conf_loss = custom_loss(cls_targets, pred_scores, [1, weight_conf])
             # conf_loss = focal_loss(pred_scores, cls_targets, alpha=[0.998, 0.002], weight=weight_conf)
             if torch.isnan(position_loss).any() or torch.isinf(position_loss).any():
                 LOGGER.warning("NaN or Inf values in position_loss!")
