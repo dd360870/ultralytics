@@ -40,7 +40,7 @@ from pathlib import Path
 
 weight_pos = 1
 weight_mov = 1
-weight_conf = 1000
+weight_conf = 6000
 # check_training_img_path = r'C:\Users\user1\bartek\github\BartekTao\datasets\tracknet\check_training_img\img_'
 check_training_img_path = r'/usr/src/datasets/tracknet/visualize_train_img/img_'
 mode_flag = 'train'
@@ -183,17 +183,17 @@ def targetGrid(target_x, target_y, stride):
 def custom_loss(y_true, y_pred, class_weight):
     y_pred = torch.sigmoid(y_pred)  
 
-    # custom_weights = torch.square(1 - y_pred) * y_true + torch.square(y_pred) * (1 - y_true)
-    custom_weights = (1 - y_pred) * y_true + (y_pred) * (1 - y_true)
+    custom_weights = torch.square(1 - y_pred) * y_true + torch.square(y_pred) * (1 - y_true)
+    # custom_weights = (1 - y_pred) * y_true + (y_pred) * (1 - y_true)
 
     class_weights = class_weight[0] * (1 - y_true) + class_weight[1] * y_true
 
     loss = (-1) * class_weights * custom_weights * (y_true * torch.log(torch.clamp(y_pred, min=torch.finfo(y_pred.dtype).eps, max=1)) + 
                                                     (1 - y_true) * torch.log(torch.clamp(1 - y_pred, min=torch.finfo(y_pred.dtype).eps, max=1)))
-    penalty = (y_true * (1 - y_pred) * 5000)
-    print(torch.sum(penalty))
+    # penalty = (y_true * (1 - y_pred) * 5000)
+    # print(torch.sum(penalty))
 
-    return torch.mean(loss+penalty)
+    return torch.mean(loss)
 
 def focal_loss(pred_logits, targets, alpha=0.95, gamma=2.0, epsilon=1e-3, weight=10):
     """
