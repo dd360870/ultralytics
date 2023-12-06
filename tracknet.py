@@ -164,8 +164,8 @@ class TrackNetLoss:
 
                     display_image_with_coordinates(img, [(x, y)], [(max_x*32, max_y*32)], filename, loss_list)
 
-            loss[0] += position_loss * weight_pos
-            loss[1] += move_loss * weight_mov
+            #loss[0] += position_loss * weight_pos
+            #loss[1] += move_loss * weight_mov
             loss[2] += conf_loss
         tlose = loss.sum() * batch_size
         tlose_item = loss.detach()
