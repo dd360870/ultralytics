@@ -38,8 +38,8 @@ from pathlib import Path
 #imagePath = r"C:\Users\user1\bartek\github\BartekTao\ultralytics\tracknet\train_data"
 #modelPath = r'C:\Users\user1\bartek\github\BartekTao\ultralytics\ultralytics\models\v8\tracknetv4.yaml'
 
-weight_pos = 100
-weight_mov = 50
+weight_pos = 1
+weight_mov = 1
 weight_conf = 10
 # check_training_img_path = r'C:\Users\user1\bartek\github\BartekTao\datasets\tracknet\check_training_img\img_'
 check_training_img_path = r'/usr/src/datasets/tracknet/visualize_train_img/img_'
@@ -130,12 +130,14 @@ class TrackNetLoss:
                 target_dxdy_tensor = torch.stack(target_dxdy_list, dim=0)
                 move_loss = self.mse(pred_dxdy_tensor, target_dxdy_tensor)
 
-            target_scores_sum = max(cls_targets.sum(), 1)
+            # target_scores_sum = max(cls_targets.sum(), 1)
             # test = torch.zeros(pred_scores.shape, device=self.device)
             # target = torch.ones([10, 1], dtype=torch.float32)  # 64 classes, batch size = 10
             # output = torch.full([10, 1], 1)  # A prediction (logit)
             # conf_loss = self.bce(output, target).sum()
-            conf_loss = self.bce(pred_scores, cls_targets).sum() / target_scores_sum
+            # conf_loss = self.bce(pred_scores, cls_targets).sum() / target_scores_sum
+
+            conf_loss = custom_loss(cls_targets, pred_scores, [1, 400])
             # conf_loss = focal_loss(pred_scores, cls_targets, alpha=[0.998, 0.002], weight=weight_conf)
             if torch.isnan(position_loss).any() or torch.isinf(position_loss).any():
                 LOGGER.warning("NaN or Inf values in position_loss!")
@@ -177,6 +179,18 @@ def targetGrid(target_x, target_y, stride):
     offset_x = (target_x % stride)
     offset_y = (target_y % stride)
     return grid_x, grid_y, offset_x, offset_y
+
+def custom_loss(y_true, y_pred, class_weight):
+    y_pred = torch.sigmoid(y_pred)  
+
+    custom_weights = torch.square(1 - y_pred) * y_true + torch.square(y_pred) * (1 - y_true)
+
+    class_weights = class_weight[0] * (1 - y_true) + class_weight[1] * y_true
+
+    loss = (-1) * class_weights * custom_weights * (y_true * torch.log(torch.clamp(y_pred, min=torch.finfo(y_pred.dtype).eps, max=1)) + 
+                                                    (1 - y_true) * torch.log(torch.clamp(1 - y_pred, min=torch.finfo(y_pred.dtype).eps, max=1)))
+
+    return torch.mean(loss)
 
 def focal_loss(pred_logits, targets, alpha=0.95, gamma=2.0, epsilon=1e-3, weight=10):
     """
