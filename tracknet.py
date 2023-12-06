@@ -191,6 +191,7 @@ def custom_loss(y_true, y_pred, class_weight):
     loss = (-1) * class_weights * custom_weights * (y_true * torch.log(torch.clamp(y_pred, min=torch.finfo(y_pred.dtype).eps, max=1)) + 
                                                     (1 - y_true) * torch.log(torch.clamp(1 - y_pred, min=torch.finfo(y_pred.dtype).eps, max=1)))
     penalty = (y_true * (1 - y_pred) * 5000)
+    print(torch.sum(penalty))
 
     return torch.mean(loss+penalty)
 
