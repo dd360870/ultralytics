@@ -88,7 +88,7 @@ class TrackNetLoss:
             # pred = [50 * 20 * 20]
             stride = self.stride[0]
             pred_distri, pred_scores = torch.split(pred, [40, 10], dim=0)
-            pred_pos, pred_mov = torch.split(pred_distri, [20, 20], dim=0)
+            pred_pos, pred_mov = torch.split(pred_distri, [20, 20], dim=0) # TODO fix
 
             pred_pos = torch.sigmoid(pred_pos)
             pred_mov = torch.tanh(pred_mov)
@@ -145,15 +145,15 @@ class TrackNetLoss:
                 LOGGER.warning("NaN or Inf values in conf_loss!")
 
             # check
-            if rand_batch == idx and mode_flag == 'train' and self.batch_count%90 == 0:
-                for rand_idx in range(1):
+            if rand_batch == idx and mode_flag == 'train' and self.batch_count%400 == 0:
+                for rand_idx in range(10):
                     pred_conf = torch.sigmoid(pred_scores[rand_idx]).cpu()
                     img = batch_img[rand_batch][rand_idx]
                     x = (batch_target[rand_batch][rand_idx][2].item() // 32)*32
                     y = (batch_target[rand_batch][rand_idx][3].item() // 32)*32
                     max_position = torch.argmax(pred_conf)
                     max_x, max_y = np.unravel_index(max_position, pred_conf.shape)
-                    filename = f'{self.batch_count//979}_{int(self.batch_count%979)}'
+                    filename = f'{self.batch_count//979}_{int(self.batch_count%400)}'
 
                     count_ge_05 = np.count_nonzero(pred_conf >= 0.5)
                     count_lt_05 = np.count_nonzero(pred_conf < 0.5)
