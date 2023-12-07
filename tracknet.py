@@ -153,7 +153,7 @@ class TrackNetLoss:
                     y = (batch_target[rand_batch][rand_idx][3].item() // 32)*32
                     max_position = torch.argmax(pred_conf)
                     max_x, max_y = np.unravel_index(max_position, pred_conf.shape)
-                    filename = f'{self.batch_count//979}_{int(self.batch_count%400)}_{rand_idx}'
+                    filename = f'{self.batch_count//979}_{int(self.batch_count%979)}_{rand_idx}'
 
                     count_ge_05 = np.count_nonzero(pred_conf >= 0.5)
                     count_lt_05 = np.count_nonzero(pred_conf < 0.5)
