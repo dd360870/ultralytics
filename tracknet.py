@@ -1,6 +1,7 @@
 
 import argparse
 from copy import copy
+import csv
 import os
 import time
 import numpy as np
@@ -123,12 +124,12 @@ class TrackNetLoss:
             if len(pred_xy_list) > 0:
                 pred_xy_tensor = torch.stack(pred_xy_list, dim=0)
                 target_xy_tensor = torch.stack(target_xy_list, dim=0)
-                position_loss = self.mse(pred_xy_tensor, target_xy_tensor)
+                #position_loss = self.mse(pred_xy_tensor, target_xy_tensor)
 
             if len(pred_dxdy_list) > 0:
                 pred_dxdy_tensor = torch.stack(pred_dxdy_list, dim=0)
                 target_dxdy_tensor = torch.stack(target_dxdy_list, dim=0)
-                move_loss = self.mse(pred_dxdy_tensor, target_dxdy_tensor)
+                #move_loss = self.mse(pred_dxdy_tensor, target_dxdy_tensor)
 
             # target_scores_sum = max(cls_targets.sum(), 1)
             # test = torch.zeros(pred_scores.shape, device=self.device)
@@ -146,8 +147,10 @@ class TrackNetLoss:
 
             # check
             if rand_batch == idx and mode_flag == 'train' and self.batch_count%400 == 0:
+                pred_conf_all = torch.sigmoid(pred_scores.detach()).cpu()
+                pred_correct = False
                 for rand_idx in range(10):
-                    pred_conf = torch.sigmoid(pred_scores[rand_idx]).cpu()
+                    pred_conf = pred_conf_all[rand_idx]
                     img = batch_img[rand_batch][rand_idx]
                     x = (batch_target[rand_batch][rand_idx][2].item() // 32)*32
                     y = (batch_target[rand_batch][rand_idx][3].item() // 32)*32
@@ -156,6 +159,8 @@ class TrackNetLoss:
                     filename = f'{self.batch_count//979}_{int(self.batch_count%979)}_{rand_idx}'
 
                     count_ge_05 = np.count_nonzero(pred_conf >= 0.5)
+                    if count_ge_05 == 1:
+                        pred_correct = True
                     count_lt_05 = np.count_nonzero(pred_conf < 0.5)
                     loss_list = [conf_loss.item()]
                     loss_list.append(count_ge_05)
@@ -163,6 +168,8 @@ class TrackNetLoss:
                     loss_list.append(pred_conf[int(x/32)][int(y/32)])
 
                     display_image_with_coordinates(img, [(x, y)], [(max_x*32, max_y*32)], filename, loss_list)
+                if pred_correct:
+                    save_pred_and_loss(pred_conf_all, conf_loss.detach(), filename)
 
             #loss[0] += position_loss * weight_pos
             #loss[1] += move_loss * weight_mov
@@ -172,7 +179,32 @@ class TrackNetLoss:
         # LOGGER.info(f'tloss: {tlose}, tlose_item: {tlose_item}')
         self.batch_count+=1
         return tlose, tlose_item
+def save_pred_and_loss(predictions, loss, filename):
+    """
+    Save the predictions and loss into a CSV file.
 
+    :param predictions: A tensor of shape [10, 20, 20] containing the predictions with gradient information.
+    :param loss: A scalar representing the loss value.
+    :param filename: The name of the file to save the data.
+    """
+    # Detach predictions from the current graph and convert to numpy
+    if predictions.requires_grad:
+        predictions = predictions.detach()
+        loss = loss.detach()
+
+    if isinstance(predictions, torch.Tensor):
+        predictions = predictions.numpy()
+
+    with open(check_training_img_path+filename+'.csv', mode='w', newline='') as file:
+        writer = csv.writer(file)
+
+        # Write each 20x20 prediction along with the loss
+        for pred in predictions:
+            # Flatten the 20x20 prediction to a single row
+            flattened_pred = pred.flatten()
+            # Append the loss and write to the file
+            writer.writerow(list(flattened_pred) + [loss])
+            
 def targetGrid(target_x, target_y, stride):
     grid_x = int(target_x / stride)
     grid_y = int(target_y / stride)
