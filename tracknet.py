@@ -148,6 +148,7 @@ class TrackNetLoss:
             # check
             if rand_batch == idx and mode_flag == 'train' and self.batch_count%400 == 0:
                 pred_conf_all = torch.sigmoid(pred_scores.detach()).cpu()
+                t_xy = []
                 for rand_idx in range(10):
                     pred_conf = pred_conf_all[rand_idx]
                     img = batch_img[rand_batch][rand_idx]
@@ -165,7 +166,8 @@ class TrackNetLoss:
                     loss_list.append(pred_conf[int(x/32)][int(y/32)])
 
                     display_image_with_coordinates(img, [(x, y)], [(max_x*32, max_y*32)], filename, loss_list)
-                save_pred_and_loss(pred_conf_all, conf_loss.detach(), filename)
+                    t_xy.append((x, y))
+                save_pred_and_loss(pred_conf_all, conf_loss.item(), filename, t_xy)
 
             #loss[0] += position_loss * weight_pos
             #loss[1] += move_loss * weight_mov
@@ -175,7 +177,7 @@ class TrackNetLoss:
         # LOGGER.info(f'tloss: {tlose}, tlose_item: {tlose_item}')
         self.batch_count+=1
         return tlose, tlose_item
-def save_pred_and_loss(predictions, loss, filename):
+def save_pred_and_loss(predictions, loss, filename, t_xy):
     """
     Save the predictions and loss into a CSV file.
 
@@ -195,11 +197,13 @@ def save_pred_and_loss(predictions, loss, filename):
         writer = csv.writer(file)
 
         # Write each 20x20 prediction along with the loss
+        i=0
         for pred in predictions:
             # Flatten the 20x20 prediction to a single row
             flattened_pred = pred.flatten()
             # Append the loss and write to the file
-            writer.writerow(list(flattened_pred) + [loss])
+            writer.writerow(list(flattened_pred) + [loss] +[t_xy[i]])
+            i+=1
             
 def targetGrid(target_x, target_y, stride):
     grid_x = int(target_x / stride)
