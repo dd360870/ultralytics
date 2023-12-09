@@ -227,8 +227,9 @@ def custom_loss(y_true, y_pred, class_weight, batch_count):
     
     if batch_count%400 == 0:
         filename = f'{batch_count//979}_{int(batch_count%979)}'
-        max_position = torch.argmax(y_true.cpu())
-        max_x, max_y = np.unravel_index(max_position, y_true.shape)
+        y_true_cpu = y_true.cpu()
+        max_position = torch.argmax(y_true_cpu.cpu())
+        max_x, max_y = np.unravel_index(max_position, y_true_cpu.shape)
         save_pred_and_loss(y_pred, loss, filename, (max_x, max_y))
     return loss
 
