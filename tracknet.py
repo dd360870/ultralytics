@@ -167,7 +167,7 @@ class TrackNetLoss:
 
                     display_image_with_coordinates(img, [(x, y)], [(max_x*32, max_y*32)], filename, loss_list)
                     t_xy.append((x/32, y/32))
-                save_pred_and_loss(pred_conf_all, conf_loss.item(), filename, t_xy)
+                save_pred_and_loss(pred_conf_all, conf_loss.item(), filename, cls_targets.cpu())
 
             #loss[0] += position_loss * weight_pos
             #loss[1] += move_loss * weight_mov
@@ -199,10 +199,12 @@ def save_pred_and_loss(predictions, loss, filename, t_xy):
         # Write each 20x20 prediction along with the loss
         i=0
         for pred in predictions:
+            max_position = torch.argmax(t_xy[i])
+            max_x, max_y = np.unravel_index(max_position, t_xy[i].shape)
             # Flatten the 20x20 prediction to a single row
             flattened_pred = pred.flatten()
             # Append the loss and write to the file
-            writer.writerow(list(flattened_pred) + [loss] +[t_xy[i]])
+            writer.writerow(list(flattened_pred) + [loss] +[(max_x, max_y)])
             i+=1
             
 def targetGrid(target_x, target_y, stride):
@@ -228,9 +230,7 @@ def custom_loss(y_true, y_pred, class_weight, batch_count):
     if batch_count%400 == 0:
         filename = f'{batch_count//979}_{int(batch_count%979)}'
         y_true_cpu = y_true.cpu()
-        max_position = torch.argmax(y_true_cpu.cpu())
-        max_x, max_y = np.unravel_index(max_position, y_true_cpu.shape)
-        save_pred_and_loss(y_pred, loss, filename, (max_x, max_y))
+        save_pred_and_loss(y_pred, loss, filename, y_true_cpu)
     return loss
 
 def focal_loss(pred_logits, targets, alpha=0.95, gamma=2.0, epsilon=1e-3, weight=10):
