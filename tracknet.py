@@ -148,7 +148,6 @@ class TrackNetLoss:
             # check
             if rand_batch == idx and mode_flag == 'train' and self.batch_count%400 == 0:
                 pred_conf_all = torch.sigmoid(pred_scores.detach()).cpu()
-                pred_correct = False
                 for rand_idx in range(10):
                     pred_conf = pred_conf_all[rand_idx]
                     img = batch_img[rand_batch][rand_idx]
@@ -159,8 +158,6 @@ class TrackNetLoss:
                     filename = f'{self.batch_count//979}_{int(self.batch_count%979)}_{rand_idx}'
 
                     count_ge_05 = np.count_nonzero(pred_conf >= 0.5)
-                    if count_ge_05 == 1:
-                        pred_correct = True
                     count_lt_05 = np.count_nonzero(pred_conf < 0.5)
                     loss_list = [conf_loss.item()]
                     loss_list.append(count_ge_05)
@@ -168,8 +165,7 @@ class TrackNetLoss:
                     loss_list.append(pred_conf[int(x/32)][int(y/32)])
 
                     display_image_with_coordinates(img, [(x, y)], [(max_x*32, max_y*32)], filename, loss_list)
-                if pred_correct:
-                    save_pred_and_loss(pred_conf_all, conf_loss.detach(), filename)
+                save_pred_and_loss(pred_conf_all, conf_loss.detach(), filename)
 
             #loss[0] += position_loss * weight_pos
             #loss[1] += move_loss * weight_mov
