@@ -160,7 +160,7 @@ class TrackNetLoss:
                     loss_list = [conf_loss.item()]
                     loss_list.append(count_ge_05)
                     loss_list.append(count_lt_05)
-                    loss_list.append(pred_conf[x][y])
+                    loss_list.append(pred_conf[y][x])
 
                     display_image_with_coordinates(img, [(x*32, y*32)], [(max_x*32, max_y*32)], filename, loss_list)
                     t_xy.append((x, y))
