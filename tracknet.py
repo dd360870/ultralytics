@@ -138,7 +138,7 @@ class TrackNetLoss:
             # conf_loss = self.bce(output, target).sum()
             # conf_loss = self.bce(pred_scores, cls_targets).sum() / target_scores_sum
 
-            conf_loss = custom_loss(cls_targets, pred_scores, [1, weight_conf])
+            conf_loss = custom_loss(cls_targets, pred_scores, [1, weight_conf], self.batch_count)
             # conf_loss = focal_loss(pred_scores, cls_targets, alpha=[0.998, 0.002], weight=weight_conf)
             if torch.isnan(position_loss).any() or torch.isinf(position_loss).any():
                 LOGGER.warning("NaN or Inf values in position_loss!")
@@ -212,7 +212,7 @@ def targetGrid(target_x, target_y, stride):
     offset_y = (target_y % stride)
     return grid_x, grid_y, offset_x, offset_y
 
-def custom_loss(y_true, y_pred, class_weight):
+def custom_loss(y_true, y_pred, class_weight, batch_count):
     y_pred = torch.sigmoid(y_pred)  
 
     custom_weights = torch.square(1 - y_pred) * y_true + torch.square(y_pred) * (1 - y_true)
@@ -222,10 +222,15 @@ def custom_loss(y_true, y_pred, class_weight):
 
     loss = (-1) * class_weights * custom_weights * (y_true * torch.log(torch.clamp(y_pred, min=torch.finfo(y_pred.dtype).eps, max=1)) + 
                                                     (1 - y_true) * torch.log(torch.clamp(1 - y_pred, min=torch.finfo(y_pred.dtype).eps, max=1)))
-    # penalty = (y_true * (1 - y_pred) * 5000)
-    # print(torch.sum(penalty))
-
-    return torch.mean(loss)
+    
+    loss = torch.mean(loss)
+    
+    if batch_count%400 == 0:
+        filename = f'{batch_count//979}_{int(batch_count%979)}'
+        max_position = torch.argmax(y_true)
+        max_x, max_y = np.unravel_index(max_position, y_true.shape)
+        save_pred_and_loss(y_pred, loss, filename, (max_x, max_y))
+    return loss
 
 def focal_loss(pred_logits, targets, alpha=0.95, gamma=2.0, epsilon=1e-3, weight=10):
     """
