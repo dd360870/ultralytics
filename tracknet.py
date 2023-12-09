@@ -81,9 +81,6 @@ class TrackNetLoss:
         loss = torch.zeros(3, device=self.device)  # box, cls, dfl
         batch_size = preds.shape[0]
 
-        # check
-        rand_batch = np.random.randint(0, 16) if batch_target.shape[0] == 16 else batch_target.shape[0]-1
-
         # for each batch
         for idx, pred in enumerate(preds):
             # pred = [50 * 20 * 20]
@@ -146,14 +143,14 @@ class TrackNetLoss:
                 LOGGER.warning("NaN or Inf values in conf_loss!")
 
             # check
-            if rand_batch == idx and mode_flag == 'train' and self.batch_count%400 == 0:
+            if mode_flag == 'train' and self.batch_count%400 == 0:
                 pred_conf_all = torch.sigmoid(pred_scores.detach()).cpu()
                 t_xy = []
                 for rand_idx in range(10):
                     pred_conf = pred_conf_all[rand_idx]
-                    img = batch_img[rand_batch][rand_idx]
-                    x = (batch_target[rand_batch][rand_idx][2].item() // 32)*32
-                    y = (batch_target[rand_batch][rand_idx][3].item() // 32)*32
+                    img = batch_img[idx][rand_idx]
+                    x = (batch_target[idx][rand_idx][2].item() // 32)*32
+                    y = (batch_target[idx][rand_idx][3].item() // 32)*32
                     max_position = torch.argmax(pred_conf)
                     max_x, max_y = np.unravel_index(max_position, pred_conf.shape)
                     filename = f'{self.batch_count//979}_{int(self.batch_count%979)}_{rand_idx}'
