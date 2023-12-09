@@ -665,15 +665,9 @@ def display_image_with_coordinates(img_tensor, coordinates, p_coordinates, fileN
     # Plot each coordinate
     for (x, y) in coordinates:
         ax.scatter(x, y, s=50, c='red', marker='o')
-        # Optionally, you can also draw a small rectangle around each point
-        rect = patches.Rectangle((x-5, y-5), 10, 10, linewidth=1, edgecolor='red', facecolor='none')
-        ax.add_patch(rect)
 
     for (x, y) in p_coordinates:
         ax.scatter(x, y, s=50, c='blue', marker='o')
-        # Optionally, you can also draw a small rectangle around each point
-        rect = patches.Rectangle((x-5, y-5), 10, 10, linewidth=1, edgecolor='blue', facecolor='none')
-        ax.add_patch(rect)
 
     # for i in range(p_array.shape[0]):
     #     for j in range(p_array.shape[1]):
