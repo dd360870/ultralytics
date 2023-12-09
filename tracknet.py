@@ -41,7 +41,7 @@ from pathlib import Path
 
 weight_pos = 1
 weight_mov = 1
-weight_conf = 10000
+weight_conf = 400
 # check_training_img_path = r'C:\Users\user1\bartek\github\BartekTao\datasets\tracknet\check_training_img\img_'
 check_training_img_path = r'/usr/src/datasets/tracknet/visualize_train_img/img_'
 mode_flag = 'train'
