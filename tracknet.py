@@ -149,8 +149,8 @@ class TrackNetLoss:
                 for rand_idx in range(10):
                     pred_conf = pred_conf_all[rand_idx]
                     img = batch_img[idx][rand_idx]
-                    x = (batch_target[idx][rand_idx][2].item() // 32)*32
-                    y = (batch_target[idx][rand_idx][3].item() // 32)*32
+                    x = int(batch_target[idx][rand_idx][2].item() // 32)
+                    y = int(batch_target[idx][rand_idx][3].item() // 32)
                     max_position = torch.argmax(pred_conf)
                     max_x, max_y = np.unravel_index(max_position, pred_conf.shape)
                     filename = f'{self.batch_count//979}_{int(self.batch_count%979)}_{rand_idx}'
@@ -160,10 +160,10 @@ class TrackNetLoss:
                     loss_list = [conf_loss.item()]
                     loss_list.append(count_ge_05)
                     loss_list.append(count_lt_05)
-                    loss_list.append(pred_conf[int(x/32)][int(y/32)])
+                    loss_list.append(pred_conf[x][y])
 
-                    display_image_with_coordinates(img, [(x, y)], [(max_x*32, max_y*32)], filename, loss_list)
-                    t_xy.append((x/32, y/32))
+                    display_image_with_coordinates(img, [(x*32, y*32)], [(max_x*32, max_y*32)], filename, loss_list)
+                    t_xy.append((x, y))
                 save_pred_and_loss(pred_conf_all, conf_loss.item(), filename, cls_targets.cpu())
 
             #loss[0] += position_loss * weight_pos
