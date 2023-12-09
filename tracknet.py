@@ -166,7 +166,7 @@ class TrackNetLoss:
                     loss_list.append(pred_conf[int(x/32)][int(y/32)])
 
                     display_image_with_coordinates(img, [(x, y)], [(max_x*32, max_y*32)], filename, loss_list)
-                    t_xy.append((x, y))
+                    t_xy.append((x/32, y/32))
                 save_pred_and_loss(pred_conf_all, conf_loss.item(), filename, t_xy)
 
             #loss[0] += position_loss * weight_pos
