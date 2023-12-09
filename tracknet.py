@@ -191,7 +191,7 @@ def save_pred_and_loss(predictions, loss, filename, t_xy):
         loss = loss.detach()
 
     if isinstance(predictions, torch.Tensor):
-        predictions = predictions.numpy()
+        predictions = predictions.cpu().numpy()
 
     with open(check_training_img_path+filename+'.csv', mode='w', newline='') as file:
         writer = csv.writer(file)
