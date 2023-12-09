@@ -152,7 +152,7 @@ class TrackNetLoss:
                     x = int(batch_target[idx][rand_idx][2].item() // 32)
                     y = int(batch_target[idx][rand_idx][3].item() // 32)
                     max_position = torch.argmax(pred_conf)
-                    max_x, max_y = np.unravel_index(max_position, pred_conf.shape)
+                    max_y, max_x = np.unravel_index(max_position, pred_conf.shape)
                     filename = f'{self.batch_count//979}_{int(self.batch_count%979)}_{rand_idx}'
 
                     count_ge_05 = np.count_nonzero(pred_conf >= 0.5)
@@ -197,7 +197,7 @@ def save_pred_and_loss(predictions, loss, filename, t_xy):
         i=0
         for pred in predictions:
             max_position = torch.argmax(t_xy[i])
-            max_x, max_y = np.unravel_index(max_position, t_xy[i].shape)
+            max_y, max_x = np.unravel_index(max_position, t_xy[i].shape)
             # Flatten the 20x20 prediction to a single row
             flattened_pred = pred.flatten()
             # Append the loss and write to the file
@@ -734,7 +734,7 @@ def main(model_path, mode, data, epochs, plots, batch, source):
             p_cell_y = torch.sigmoid(p_check[1, :, :])
 
             max_position = torch.argmax(p_conf)
-            max_x, max_y = np.unravel_index(max_position, p_conf.shape)
+            max_y, max_x = np.unravel_index(max_position, p_conf.shape)
             p_x = p_cell_x[max_x, max_y]*32
             p_y = p_cell_y[max_x, max_y]*32
             p_gridx = max_x*32 + p_cell_x[max_x, max_y]*32
