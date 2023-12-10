@@ -293,7 +293,11 @@ class TrackNetTrainer(DetectionTrainer):
             model.load(weights)
         return model
     def preprocess_batch(self, batch):
-        batch['img'] = batch['img'].to(self.device, non_blocking=True).float() / 255
+        batch['img'] = batch['img'].to(self.device, non_blocking=True)
+        batch['img'] = (batch['img'].half() if self.args.half else batch['img'].float()) / 255
+        for k in ['target']:
+            batch[k] = batch[k].to(self.device)
+
         return batch
     def get_validator(self):
         self.loss_names = 'pos_loss', 'mov_loss', 'conf_loss'
@@ -329,6 +333,11 @@ class TrackNetValidator(BaseValidator):
     
     def preprocess(self, batch):
         """In this case, the preprocessing step is mainly handled by the dataloader."""
+        batch['img'] = batch['img'].to(self.device, non_blocking=True)
+        batch['img'] = (batch['img'].half() if self.args.half else batch['img'].float()) / 255
+        for k in ['target']:
+            batch[k] = batch[k].to(self.device)
+
         return batch
     
     def postprocess(self, preds):
