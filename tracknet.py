@@ -143,7 +143,7 @@ class TrackNetLoss:
                 LOGGER.warning("NaN or Inf values in conf_loss!")
 
             # check
-            if self.batch_count%400 == 0 or pred_scores.requires_grad():
+            if (self.batch_count%400 == 0 and pred_scores.requires_grad) or (self.batch_count%20 == 0 and not pred_scores.requires_grad):
                 pred_conf_all = torch.sigmoid(pred_scores.detach()).cpu()
                 t_xy = []
                 for rand_idx in range(10):
@@ -153,7 +153,7 @@ class TrackNetLoss:
                     y = int(batch_target[idx][rand_idx][3].item() // 32)
                     max_position = torch.argmax(pred_conf)
                     max_y, max_x = np.unravel_index(max_position, pred_conf.shape)
-                    filename = f'{self.batch_count//979}_{int(self.batch_count%979)}_{rand_idx}'
+                    filename = f'{self.batch_count//979}_{int(self.batch_count%979)}_{rand_idx}_{pred_scores.requires_grad}'
 
                     count_ge_05 = np.count_nonzero(pred_conf >= 0.5)
                     count_lt_05 = np.count_nonzero(pred_conf < 0.5)
@@ -223,8 +223,8 @@ def custom_loss(y_true, y_pred, class_weight, batch_count):
     
     loss = torch.mean(loss)
     
-    if batch_count%400 == 0 or y_pred.requires_grad():
-        filename = f'{batch_count//979}_{int(batch_count%979)}'
+    if (batch_count%400 == 0 and y_pred.requires_grad) or (batch_count%20 == 0 and not y_pred.requires_grad):
+        filename = f'{batch_count//979}_{int(batch_count%979)}_{y_pred.requires_grad}'
         y_true_cpu = y_true.cpu()
         save_pred_and_loss(y_pred, loss, filename, y_true_cpu)
     return loss
