@@ -143,7 +143,7 @@ class TrackNetLoss:
                 LOGGER.warning("NaN or Inf values in conf_loss!")
 
             # check
-            if mode_flag == 'train' and self.batch_count%400 == 0:
+            if self.batch_count%400 == 0 or pred_scores.requires_grad():
                 pred_conf_all = torch.sigmoid(pred_scores.detach()).cpu()
                 t_xy = []
                 for rand_idx in range(10):
@@ -164,7 +164,6 @@ class TrackNetLoss:
 
                     display_image_with_coordinates(img, [(x*32, y*32)], [(max_x*32, max_y*32)], filename, loss_list)
                     t_xy.append((x, y))
-                save_pred_and_loss(pred_conf_all, conf_loss.item(), filename, cls_targets.cpu())
 
             #loss[0] += position_loss * weight_pos
             #loss[1] += move_loss * weight_mov
@@ -224,7 +223,7 @@ def custom_loss(y_true, y_pred, class_weight, batch_count):
     
     loss = torch.mean(loss)
     
-    if batch_count%400 == 0:
+    if batch_count%400 == 0 or y_pred.requires_grad():
         filename = f'{batch_count//979}_{int(batch_count%979)}'
         y_true_cpu = y_true.cpu()
         save_pred_and_loss(y_pred, loss, filename, y_true_cpu)
