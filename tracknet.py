@@ -143,7 +143,7 @@ class TrackNetLoss:
                 LOGGER.warning("NaN or Inf values in conf_loss!")
 
             # check
-            if (self.batch_count%400 == 0 and pred_scores.requires_grad) or (self.batch_count%20 == 0 and not pred_scores.requires_grad):
+            if (self.batch_count%400 == 0 and pred_scores.requires_grad and idx == 15) or (self.batch_count%20 == 0 and not pred_scores.requires_grad and idx == 15):
                 pred_conf_all = torch.sigmoid(pred_scores.detach()).cpu()
                 t_xy = []
                 for rand_idx in range(10):
