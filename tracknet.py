@@ -121,12 +121,12 @@ class TrackNetLoss:
             if len(pred_xy_list) > 0:
                 pred_xy_tensor = torch.stack(pred_xy_list, dim=0)
                 target_xy_tensor = torch.stack(target_xy_list, dim=0)
-                #position_loss = self.mse(pred_xy_tensor, target_xy_tensor)
+                position_loss = self.mse(pred_xy_tensor, target_xy_tensor)
 
             if len(pred_dxdy_list) > 0:
                 pred_dxdy_tensor = torch.stack(pred_dxdy_list, dim=0)
                 target_dxdy_tensor = torch.stack(target_dxdy_list, dim=0)
-                #move_loss = self.mse(pred_dxdy_tensor, target_dxdy_tensor)
+                move_loss = self.mse(pred_dxdy_tensor, target_dxdy_tensor)
 
             # target_scores_sum = max(cls_targets.sum(), 1)
             # test = torch.zeros(pred_scores.shape, device=self.device)
@@ -165,8 +165,8 @@ class TrackNetLoss:
                     display_image_with_coordinates(img, [(x*32, y*32)], [(max_x*32, max_y*32)], filename, loss_list)
                     t_xy.append((x, y))
 
-            #loss[0] += position_loss * weight_pos
-            #loss[1] += move_loss * weight_mov
+            loss[0] += position_loss * weight_pos
+            loss[1] += move_loss * weight_mov
             loss[2] += conf_loss
         tlose = loss.sum() * batch_size
         tlose_item = loss.detach()
