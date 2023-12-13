@@ -158,10 +158,10 @@ class TrackNetLoss:
                     dy = int(batch_target[idx][rand_idx][5].item())
                     max_position = torch.argmax(pred_conf)
                     max_y, max_x = np.unravel_index(max_position, pred_conf.shape)
-                    grid_x = pred_pos[rand_idx][0][max_y][max_x]
-                    grid_y = pred_pos[rand_idx][1][max_y][max_x]
-                    pred_dx = pred_mov[rand_idx][0][max_y][max_x]
-                    pred_dy = pred_mov[rand_idx][1][max_y][max_x]
+                    grid_x = pred_pos[rand_idx][0][max_y][max_x].detach().item()
+                    grid_y = pred_pos[rand_idx][1][max_y][max_x].detach().item()
+                    pred_dx = pred_mov[rand_idx][0][max_y][max_x].detach().item()
+                    pred_dy = pred_mov[rand_idx][1][max_y][max_x].detach().item()
                     filename = f'{self.batch_count//979}_{int(self.batch_count%979)}_{rand_idx}_{pred_scores.requires_grad}'
 
                     count_ge_05 = np.count_nonzero(pred_conf >= 0.5)
@@ -170,8 +170,8 @@ class TrackNetLoss:
                     loss_list.append(count_ge_05)
                     loss_list.append(count_lt_05)
                     loss_list.append(pred_conf[int(y//32)][int(x//32)])
-                    #loss_list.append((grid_x, grid_y))
-                    #loss_list.append((dx, dy, pred_dx*640, pred_dy*640))
+                    loss_list.append((grid_x, grid_y))
+                    loss_list.append((dx, dy, pred_dx*640, pred_dy*640))
 
                     display_image_with_coordinates(img, [(x, y)], [((max_x + grid_x)*32, (max_y + grid_y)*32)], filename, loss_list)
 
