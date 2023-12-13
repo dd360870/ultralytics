@@ -149,7 +149,6 @@ class TrackNetLoss:
             # check
             if (self.batch_count%400 == 0 and pred_scores.requires_grad and idx == 15) or (self.batch_count%20 == 0 and not pred_scores.requires_grad and idx == 15):
                 pred_conf_all = torch.sigmoid(pred_scores.detach()).cpu()
-                t_xy = []
                 for rand_idx in range(10):
                     pred_conf = pred_conf_all[rand_idx]
                     img = batch_img[idx][rand_idx]
@@ -170,12 +169,11 @@ class TrackNetLoss:
                     loss_list = [conf_loss.item()]
                     loss_list.append(count_ge_05)
                     loss_list.append(count_lt_05)
-                    loss_list.append(pred_conf[y][x])
+                    loss_list.append(pred_conf[int(y//32)][int(x//32)])
                     loss_list.append((grid_x, grid_y))
                     loss_list.append((dx, dy, pred_dx*640, pred_dy*640))
 
                     display_image_with_coordinates(img, [(x, y)], [((max_x + grid_x)*32, (max_y + grid_y)*32)], filename, loss_list)
-                    t_xy.append((x, y))
 
             loss[0] += position_loss * weight_pos
             loss[1] += move_loss * weight_mov
