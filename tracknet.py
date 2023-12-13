@@ -39,8 +39,8 @@ from pathlib import Path
 #imagePath = r"C:\Users\user1\bartek\github\BartekTao\ultralytics\tracknet\train_data"
 #modelPath = r'C:\Users\user1\bartek\github\BartekTao\ultralytics\ultralytics\models\v8\tracknetv4.yaml'
 
-weight_pos = 1
-weight_mov = 1
+weight_pos = 10
+weight_mov = 10
 weight_conf = 400
 # check_training_img_path = r'C:\Users\user1\bartek\github\BartekTao\datasets\tracknet\check_training_img\img_'
 check_training_img_path = r'/usr/src/datasets/tracknet/visualize_train_img/img_'
@@ -86,7 +86,11 @@ class TrackNetLoss:
             # pred = [50 * 20 * 20]
             stride = self.stride[0]
             pred_distri, pred_scores = torch.split(pred, [40, 10], dim=0)
-            pred_pos, pred_mov = torch.split(pred_distri, [20, 20], dim=0) # TODO fix
+            pred_distri = pred_distri.reshape(4, 10, 20, 20)
+            pred_pos, pred_mov = torch.split(pred_distri, [2, 2], dim=0)
+
+            pred_pos = pred_pos.permute(1, 0, 2, 3).contiguous()
+            pred_mov = pred_mov.permute(1, 0, 2, 3).contiguous()
 
             pred_pos = torch.sigmoid(pred_pos)
             pred_mov = torch.tanh(pred_mov)
@@ -106,13 +110,13 @@ class TrackNetLoss:
                     # xy
                     grid_x, grid_y, offset_x, offset_y = targetGrid(target[2], target[3], stride)
 
-                    pred_x = pred_pos[2*target_idx, grid_y, grid_x]
-                    pred_y = pred_pos[2*target_idx + 1, grid_y, grid_x]
+                    pred_x = pred_pos[target_idx, 0, grid_y, grid_x]
+                    pred_y = pred_pos[target_idx, 1, grid_y, grid_x]
                     pred_xy_list.append(torch.tensor([pred_x, pred_y]))
                     target_xy_list.append(torch.tensor([offset_x/stride, offset_y/stride]))
 
-                    pred_dx = pred_mov[2*target_idx, grid_y, grid_x]
-                    pred_dy = pred_mov[2*target_idx + 1, grid_y, grid_x]
+                    pred_dx = pred_mov[target_idx, 0, grid_y, grid_x]
+                    pred_dy = pred_mov[target_idx, 1, grid_y, grid_x]
                     pred_dxdy_list.append(torch.tensor([pred_dx, pred_dy]))
                     target_dxdy_list.append(torch.tensor([target[4]/640, target[5]/640]))
 
@@ -149,10 +153,16 @@ class TrackNetLoss:
                 for rand_idx in range(10):
                     pred_conf = pred_conf_all[rand_idx]
                     img = batch_img[idx][rand_idx]
-                    x = int(batch_target[idx][rand_idx][2].item() // 32)
-                    y = int(batch_target[idx][rand_idx][3].item() // 32)
+                    x = int(batch_target[idx][rand_idx][2].item())
+                    y = int(batch_target[idx][rand_idx][3].item())
+                    dx = int(batch_target[idx][rand_idx][4].item())
+                    dy = int(batch_target[idx][rand_idx][5].item())
                     max_position = torch.argmax(pred_conf)
                     max_y, max_x = np.unravel_index(max_position, pred_conf.shape)
+                    grid_x = pred_pos[rand_idx][0][max_y][max_x]
+                    grid_y = pred_pos[rand_idx][1][max_y][max_x]
+                    pred_dx = pred_mov[rand_idx][0][max_y][max_x]
+                    pred_dy = pred_mov[rand_idx][1][max_y][max_x]
                     filename = f'{self.batch_count//979}_{int(self.batch_count%979)}_{rand_idx}_{pred_scores.requires_grad}'
 
                     count_ge_05 = np.count_nonzero(pred_conf >= 0.5)
@@ -161,8 +171,10 @@ class TrackNetLoss:
                     loss_list.append(count_ge_05)
                     loss_list.append(count_lt_05)
                     loss_list.append(pred_conf[y][x])
+                    loss_list.append((grid_x, grid_y))
+                    loss_list.append((dx, dy, pred_dx*640, pred_dy*640))
 
-                    display_image_with_coordinates(img, [(x*32, y*32)], [(max_x*32, max_y*32)], filename, loss_list)
+                    display_image_with_coordinates(img, [(x, y)], [((max_x + grid_x)*32, (max_y + grid_y)*32)], filename, loss_list)
                     t_xy.append((x, y))
 
             loss[0] += position_loss * weight_pos
