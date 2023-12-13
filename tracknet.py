@@ -170,8 +170,8 @@ class TrackNetLoss:
                     loss_list.append(count_ge_05)
                     loss_list.append(count_lt_05)
                     loss_list.append(pred_conf[int(y//32)][int(x//32)])
-                    loss_list.append((grid_x, grid_y))
-                    loss_list.append((dx, dy, pred_dx*640, pred_dy*640))
+                    #loss_list.append((grid_x, grid_y))
+                    #loss_list.append((dx, dy, pred_dx*640, pred_dy*640))
 
                     display_image_with_coordinates(img, [(x, y)], [((max_x + grid_x)*32, (max_y + grid_y)*32)], filename, loss_list)
 
