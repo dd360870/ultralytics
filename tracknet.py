@@ -44,7 +44,7 @@ weight_mov = 1
 weight_conf = 400
 # check_training_img_path = r'C:\Users\user1\bartek\github\BartekTao\datasets\tracknet\check_training_img\img_'
 check_training_img_path = r'/usr/src/datasets/tracknet/visualize_train_img/img_'
-mode_flag = 'train'
+check_val_img_path = r'/usr/src/datasets/tracknet/visualize_val_img/img_'
 
 class TrackNetV4(DetectionModel):
     def init_criterion(self):
@@ -93,7 +93,9 @@ class TrackNetLoss:
             pred_mov = pred_mov.permute(1, 0, 2, 3).contiguous()
 
             pred_pos = torch.sigmoid(pred_pos)
+            target_pos = pred_pos.detach().clone()
             pred_mov = torch.tanh(pred_mov)
+            target_mov = pred_mov.detach().clone()
             
             cls_targets = torch.zeros(pred_scores.shape, device=self.device)
             
@@ -112,25 +114,32 @@ class TrackNetLoss:
 
                     pred_x = pred_pos[target_idx, 0, grid_y, grid_x]
                     pred_y = pred_pos[target_idx, 1, grid_y, grid_x]
-                    pred_xy_list.append(torch.tensor([pred_x, pred_y]))
-                    target_xy_list.append(torch.tensor([offset_x/stride, offset_y/stride]))
+                    target_pos[target_idx, 0, grid_y, grid_x] = offset_x/stride
+                    target_pos[target_idx, 1, grid_y, grid_x] = offset_y/stride
+                    # pred_xy_list.append(torch.tensor([pred_x, pred_y]))
+                    # target_xy_list.append(torch.tensor([offset_x/stride, offset_y/stride]))
 
                     pred_dx = pred_mov[target_idx, 0, grid_y, grid_x]
                     pred_dy = pred_mov[target_idx, 1, grid_y, grid_x]
-                    pred_dxdy_list.append(torch.tensor([pred_dx, pred_dy]))
-                    target_dxdy_list.append(torch.tensor([target[4]/640, target[5]/640]))
+                    target_mov[target_idx, 0, grid_y, grid_x] = target[4]/640
+                    target_mov[target_idx, 1, grid_y, grid_x] = target[5]/640
+                    # pred_dxdy_list.append(torch.tensor([pred_dx, pred_dy]))
+                    # target_dxdy_list.append(torch.tensor([target[4]/640, target[5]/640]))
 
                     ## cls
                     cls_targets[target_idx, grid_y, grid_x] = 1
-            if len(pred_xy_list) > 0:
-                pred_xy_tensor = torch.stack(pred_xy_list, dim=0)
-                target_xy_tensor = torch.stack(target_xy_list, dim=0)
-                position_loss = self.mse(pred_xy_tensor, target_xy_tensor)
+            # if len(pred_xy_list) > 0:
+            #     pred_xy_tensor = torch.stack(pred_xy_list, dim=0)
+            #     target_xy_tensor = torch.stack(target_xy_list, dim=0)
+            #     position_loss = self.mse(pred_xy_tensor, target_xy_tensor)
+            position_loss = self.mse(pred_pos, target_pos)
 
-            if len(pred_dxdy_list) > 0:
-                pred_dxdy_tensor = torch.stack(pred_dxdy_list, dim=0)
-                target_dxdy_tensor = torch.stack(target_dxdy_list, dim=0)
-                move_loss = self.mse(pred_dxdy_tensor, target_dxdy_tensor)
+            # if len(pred_dxdy_list) > 0:
+            #     pred_dxdy_tensor = torch.stack(pred_dxdy_list, dim=0)
+            #     target_dxdy_tensor = torch.stack(target_dxdy_list, dim=0)
+            #     move_loss = self.mse(pred_dxdy_tensor, target_dxdy_tensor)
+            move_loss = self.mse(pred_mov, target_mov)
+
 
             # target_scores_sum = max(cls_targets.sum(), 1)
             # test = torch.zeros(pred_scores.shape, device=self.device)
@@ -356,7 +365,6 @@ class TrackNetValidator(BaseValidator):
         return preds
     
     def init_metrics(self, model):
-        mode_flag = 'valid'
         """Initialize some metrics."""
         # Placeholder for any metrics you might want to use.
         self.total_loss = 0.0
@@ -440,8 +448,6 @@ class TrackNetValidator(BaseValidator):
         return {'FN': self.FN, 'FP': self.FP, 'TN': self.TN, 'TP': self.TP, 'acc': self.acc, 'max_conf>0.5': self.hasMax, 'correct_cell>0.5':self.hasBall}
     
     def print_results(self):
-        mode_flag = 'train'
-
         """Print the results."""
         precision = 0
         recall = 0
