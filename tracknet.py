@@ -122,8 +122,8 @@ class TrackNetLoss:
                     # if (self.batch_count%400 == 0 and pred_mov.requires_grad) or (self.batch_count%20 == 0 and not pred_mov.requires_grad):
                     #     print(f'(x, y): ({offset_x/stride}, {offset_y/stride}), (pred_x, pred_y): ({pred_x}, {pred_y})')
 
-                    pred_dx = pred_mov[target_idx, 0, grid_y, grid_x]
-                    pred_dy = pred_mov[target_idx, 1, grid_y, grid_x]
+                    # pred_dx = pred_mov[target_idx, 0, grid_y, grid_x]
+                    # pred_dy = pred_mov[target_idx, 1, grid_y, grid_x]
                     target_mov[target_idx, 0, grid_y, grid_x] = target[4]/640
                     target_mov[target_idx, 1, grid_y, grid_x] = target[5]/640
                     # pred_dxdy_list.append(torch.tensor([pred_dx, pred_dy]))
@@ -171,6 +171,8 @@ class TrackNetLoss:
             # check
             if (self.batch_count%400 == 0 and pred_scores.requires_grad and idx == 15) or (self.batch_count%20 == 0 and not pred_scores.requires_grad and idx == 15):
                 pred_conf_all = torch.sigmoid(pred_scores.detach()).cpu()
+                pred_pos_all = pred_pos.detach().clone()
+                pred_mov_all = pred_mov.detach().clone()
                 for rand_idx in range(10):
                     pred_conf = pred_conf_all[rand_idx]
                     img = batch_img[idx][rand_idx]
@@ -180,10 +182,10 @@ class TrackNetLoss:
                     dy = int(batch_target[idx][rand_idx][5].item())
                     max_position = torch.argmax(pred_conf)
                     max_y, max_x = np.unravel_index(max_position, pred_conf.shape)
-                    grid_x = pred_pos[rand_idx][0][max_y][max_x].detach().item()
-                    grid_y = pred_pos[rand_idx][1][max_y][max_x].detach().item()
-                    pred_dx = pred_mov[rand_idx][0][max_y][max_x].detach().item()
-                    pred_dy = pred_mov[rand_idx][1][max_y][max_x].detach().item()
+                    grid_x = pred_pos_all[rand_idx][0][max_y][max_x].item()
+                    grid_y = pred_pos_all[rand_idx][1][max_y][max_x].item()
+                    pred_dx = pred_mov_all[rand_idx][0][max_y][max_x].item()
+                    pred_dy = pred_mov_all[rand_idx][1][max_y][max_x].item()
                     filename = f'{self.batch_count//1594}_{int(self.batch_count%1594)}_{rand_idx}_{pred_scores.requires_grad}'
 
                     count_ge_05 = np.count_nonzero(pred_conf >= 0.5)
