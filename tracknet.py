@@ -39,8 +39,8 @@ from pathlib import Path
 #imagePath = r"C:\Users\user1\bartek\github\BartekTao\ultralytics\tracknet\train_data"
 #modelPath = r'C:\Users\user1\bartek\github\BartekTao\ultralytics\ultralytics\models\v8\tracknetv4.yaml'
 
-weight_pos = 1
-weight_mov = 1
+weight_pos = 10
+weight_mov = 10
 weight_conf = 400
 # check_training_img_path = r'C:\Users\user1\bartek\github\BartekTao\datasets\tracknet\check_training_img\img_'
 check_training_img_path = r'/usr/src/datasets/tracknet/visualize_train_img/img_'
