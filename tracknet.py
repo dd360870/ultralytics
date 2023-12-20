@@ -139,7 +139,7 @@ class TrackNetLoss:
             #     position_loss = self.mse(pred_xy_tensor, target_xy_tensor)
             position_loss = self.mse(pred_pos, target_pos) / (1 if mask_has_ball.sum() == 0 else mask_has_ball.sum())
             # if (self.batch_count%400 == 0 and pred_pos.requires_grad) or (self.batch_count%20 == 0 and not pred_pos.requires_grad):
-            #     filename = f'{self.batch_count//979}_{int(self.batch_count%979)}_pos_{pred_pos.requires_grad}'
+            #     filename = f'{self.batch_count//1594}_{int(self.batch_count%1594)}_pos_{pred_pos.requires_grad}'
             #     y_true_cpu = target_pos.cpu()
             #     save_pos_mov_loss(pred_pos, loss, filename, y_true_cpu)
 
@@ -149,7 +149,7 @@ class TrackNetLoss:
             #     move_loss = self.mse(pred_dxdy_tensor, target_dxdy_tensor)
             move_loss = self.mse(pred_mov, target_mov) / (1 if mask_has_ball.sum() == 0 else mask_has_ball.sum())
             # if (self.batch_count%400 == 0 and pred_mov.requires_grad) or (self.batch_count%20 == 0 and not pred_mov.requires_grad):
-            #     filename = f'{self.batch_count//979}_{int(self.batch_count%979)}_mov_{pred_mov.requires_grad}'
+            #     filename = f'{self.batch_count//1594}_{int(self.batch_count%1594)}_mov_{pred_mov.requires_grad}'
             #     y_true_cpu = target_mov.cpu()
             #     save_pos_mov_loss(pred_mov, loss, filename, y_true_cpu)
 
@@ -184,7 +184,7 @@ class TrackNetLoss:
                     grid_y = pred_pos[rand_idx][1][max_y][max_x].detach().item()
                     pred_dx = pred_mov[rand_idx][0][max_y][max_x].detach().item()
                     pred_dy = pred_mov[rand_idx][1][max_y][max_x].detach().item()
-                    filename = f'{self.batch_count//979}_{int(self.batch_count%979)}_{rand_idx}_{pred_scores.requires_grad}'
+                    filename = f'{self.batch_count//1594}_{int(self.batch_count%1594)}_{rand_idx}_{pred_scores.requires_grad}'
 
                     count_ge_05 = np.count_nonzero(pred_conf >= 0.5)
                     count_lt_05 = np.count_nonzero(pred_conf < 0.5)
@@ -289,7 +289,7 @@ def custom_loss(y_true, y_pred, class_weight, batch_count):
     loss = torch.mean(loss)
     
     if (batch_count%400 == 0 and y_pred.requires_grad) or (batch_count%20 == 0 and not y_pred.requires_grad):
-        filename = f'{batch_count//979}_{int(batch_count%979)}_{y_pred.requires_grad}'
+        filename = f'{batch_count//1594}_{int(batch_count%1594)}_{y_pred.requires_grad}'
         y_true_cpu = y_true.cpu()
         save_pred_and_loss(y_pred, loss, filename, y_true_cpu)
     return loss
