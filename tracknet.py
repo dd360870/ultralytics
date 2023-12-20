@@ -39,8 +39,8 @@ from pathlib import Path
 #imagePath = r"C:\Users\user1\bartek\github\BartekTao\ultralytics\tracknet\train_data"
 #modelPath = r'C:\Users\user1\bartek\github\BartekTao\ultralytics\ultralytics\models\v8\tracknetv4.yaml'
 
-weight_pos = 400
-weight_mov = 400
+weight_pos = 1
+weight_mov = 1
 weight_conf = 400
 # check_training_img_path = r'C:\Users\user1\bartek\github\BartekTao\datasets\tracknet\check_training_img\img_'
 check_training_img_path = r'/usr/src/datasets/tracknet/visualize_train_img/img_'
@@ -59,7 +59,7 @@ class TrackNetLoss:
         m = model.model[-1]  # Detect() module
         pos_weight = torch.tensor(1000).to(device)
         self.bce = nn.BCEWithLogitsLoss(reduction='none', pos_weight=pos_weight)
-        self.mse = nn.MSELoss()
+        self.mse = nn.MSELoss(reduction='sum')
         self.hyp = h
         self.stride = m.stride  # model strides
         self.nc = m.nc  # number of classes
@@ -107,20 +107,20 @@ class TrackNetLoss:
 
             pred_dxdy_list = []
             target_dxdy_list = []
+            
+            mask_has_ball = torch.zeros_like(target_pos)
             for target_idx, target in enumerate(batch_target[idx]):
                 if target[1] == 1:
                     # xy
                     grid_x, grid_y, offset_x, offset_y = targetGrid(target[2], target[3], stride)
+                    mask_has_ball[target_idx, :, grid_y, grid_x] = 1
                     
-
-                    pred_x = pred_pos[target_idx, 0, grid_y, grid_x]
-                    pred_y = pred_pos[target_idx, 1, grid_y, grid_x]
                     target_pos[target_idx, 0, grid_y, grid_x] = offset_x/stride
                     target_pos[target_idx, 1, grid_y, grid_x] = offset_y/stride
                     # pred_xy_list.append(torch.tensor([pred_x, pred_y]))
                     # target_xy_list.append(torch.tensor([offset_x/stride, offset_y/stride]))
-                    if (self.batch_count%400 == 0 and pred_mov.requires_grad) or (self.batch_count%20 == 0 and not pred_mov.requires_grad):
-                        print(f'(x, y): ({offset_x}, {offset_y}), (pred_x, pred_y): ({pred_x}, {pred_y})')
+                    # if (self.batch_count%400 == 0 and pred_mov.requires_grad) or (self.batch_count%20 == 0 and not pred_mov.requires_grad):
+                    #     print(f'(x, y): ({offset_x/stride}, {offset_y/stride}), (pred_x, pred_y): ({pred_x}, {pred_y})')
 
                     pred_dx = pred_mov[target_idx, 0, grid_y, grid_x]
                     pred_dy = pred_mov[target_idx, 1, grid_y, grid_x]
@@ -128,8 +128,8 @@ class TrackNetLoss:
                     target_mov[target_idx, 1, grid_y, grid_x] = target[5]/640
                     # pred_dxdy_list.append(torch.tensor([pred_dx, pred_dy]))
                     # target_dxdy_list.append(torch.tensor([target[4]/640, target[5]/640]))
-                    if (self.batch_count%400 == 0 and pred_mov.requires_grad) or (self.batch_count%20 == 0 and not pred_mov.requires_grad):
-                        print(f'(dx, dy): ({target[4]/640}, {target[5]/640}), (pred_dx, pred_dy): ({pred_dx}, {pred_dy})')
+                    # if (self.batch_count%400 == 0 and pred_mov.requires_grad) or (self.batch_count%20 == 0 and not pred_mov.requires_grad):
+                    #     print(f'(dx, dy): ({target[4]/640}, {target[5]/640}), (pred_dx, pred_dy): ({pred_dx}, {pred_dy})')
 
                     ## cls
                     cls_targets[target_idx, grid_y, grid_x] = 1
@@ -137,7 +137,7 @@ class TrackNetLoss:
             #     pred_xy_tensor = torch.stack(pred_xy_list, dim=0)
             #     target_xy_tensor = torch.stack(target_xy_list, dim=0)
             #     position_loss = self.mse(pred_xy_tensor, target_xy_tensor)
-            position_loss = self.mse(pred_pos, target_pos)
+            position_loss = self.mse(pred_pos, target_pos) / (1 if mask_has_ball.sum() == 0 else mask_has_ball.sum())
             # if (self.batch_count%400 == 0 and pred_pos.requires_grad) or (self.batch_count%20 == 0 and not pred_pos.requires_grad):
             #     filename = f'{self.batch_count//979}_{int(self.batch_count%979)}_pos_{pred_pos.requires_grad}'
             #     y_true_cpu = target_pos.cpu()
@@ -147,7 +147,7 @@ class TrackNetLoss:
             #     pred_dxdy_tensor = torch.stack(pred_dxdy_list, dim=0)
             #     target_dxdy_tensor = torch.stack(target_dxdy_list, dim=0)
             #     move_loss = self.mse(pred_dxdy_tensor, target_dxdy_tensor)
-            move_loss = self.mse(pred_mov, target_mov)
+            move_loss = self.mse(pred_mov, target_mov) / (1 if mask_has_ball.sum() == 0 else mask_has_ball.sum())
             # if (self.batch_count%400 == 0 and pred_mov.requires_grad) or (self.batch_count%20 == 0 and not pred_mov.requires_grad):
             #     filename = f'{self.batch_count//979}_{int(self.batch_count%979)}_mov_{pred_mov.requires_grad}'
             #     y_true_cpu = target_mov.cpu()
