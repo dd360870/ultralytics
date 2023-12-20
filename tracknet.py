@@ -136,7 +136,7 @@ class TrackNetLoss:
             if (self.batch_count%400 == 0 and pred_pos.requires_grad) or (self.batch_count%20 == 0 and not pred_pos.requires_grad):
                 filename = f'{self.batch_count//979}_{int(self.batch_count%979)}_pos_{pred_pos.requires_grad}'
                 y_true_cpu = target_pos.cpu()
-                save_pred_and_loss(pred_pos, loss, filename, y_true_cpu)
+                save_pos_mov_loss(pred_pos, loss, filename, y_true_cpu)
 
             # if len(pred_dxdy_list) > 0:
             #     pred_dxdy_tensor = torch.stack(pred_dxdy_list, dim=0)
@@ -146,7 +146,7 @@ class TrackNetLoss:
             if (self.batch_count%400 == 0 and pred_mov.requires_grad) or (self.batch_count%20 == 0 and not pred_mov.requires_grad):
                 filename = f'{self.batch_count//979}_{int(self.batch_count%979)}_mov_{pred_mov.requires_grad}'
                 y_true_cpu = target_mov.cpu()
-                save_pred_and_loss(pred_mov, loss, filename, y_true_cpu)
+                save_pos_mov_loss(pred_mov, loss, filename, y_true_cpu)
 
 
             # target_scores_sum = max(cls_targets.sum(), 1)
@@ -228,6 +228,39 @@ def save_pred_and_loss(predictions, loss, filename, t_xy):
             flattened_pred = pred.flatten()
             # Append the loss and write to the file
             writer.writerow(list(flattened_pred) + [loss] +[(max_x, max_y)])
+            i+=1
+def save_pos_mov_loss(predictions, loss, filename, target):
+    """
+    Save the predictions and loss into a CSV file.
+
+    :param predictions: A tensor of shape [10, 20, 20] containing the predictions with gradient information.
+    :param loss: A scalar representing the loss value.
+    :param filename: The name of the file to save the data.
+    """
+    # Detach predictions from the current graph and convert to numpy
+    if predictions.requires_grad:
+        predictions = predictions.detach()
+        loss = loss.detach()
+
+    if isinstance(predictions, torch.Tensor):
+        predictions = predictions.cpu().numpy()
+
+    with open(check_training_img_path+filename+'.csv', mode='w', newline='') as file:
+        writer = csv.writer(file)
+
+        # Write each 20x20 prediction along with the loss
+        i=0
+        for pred in predictions:
+            # Flatten the 20x20 prediction to a single row
+            flattened_pred = pred.flatten()
+            # Append the loss and write to the file
+            writer.writerow(list(flattened_pred) + [loss])
+            i+=1
+        for pred in target:
+            # Flatten the 20x20 prediction to a single row
+            flattened_pred = pred.flatten()
+            # Append the loss and write to the file
+            writer.writerow(list(flattened_pred))
             i+=1
             
 def targetGrid(target_x, target_y, stride):
