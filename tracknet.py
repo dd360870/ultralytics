@@ -191,6 +191,8 @@ class TrackNetLoss:
                     count_ge_05 = np.count_nonzero(pred_conf >= 0.5)
                     count_lt_05 = np.count_nonzero(pred_conf < 0.5)
                     loss_list = [conf_loss.item()]
+                    loss_list.append(position_loss.item())
+                    loss_list.append(move_loss.item())
                     loss_list.append(count_ge_05)
                     loss_list.append(count_lt_05)
                     loss_list.append(pred_conf[int(y//32)][int(x//32)])
