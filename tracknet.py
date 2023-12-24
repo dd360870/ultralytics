@@ -726,7 +726,7 @@ def display_image_with_coordinates(img_tensor, target, pred, fileName, input_num
     fig, ax = plt.subplots(1)
 
     # Display the image
-    ax.imshow(img_array)
+    ax.imshow(img_array, cmap='gray')
 
     img_height, img_width = img_array.shape[:2]
 
