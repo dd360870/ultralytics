@@ -196,9 +196,8 @@ class TrackNetLoss:
                     loss_dict['position_loss'] = position_loss.item()
                     loss_dict['pred_conf >= 0.5 count'] = count_ge_05
                     loss_dict['pred_conf < 0.5 count'] = count_lt_05
-                    loss_dict['GT corresponding pred_conf'] = pred_conf[int(y//32)][int(x//32)].item()
                     loss_dict['x, y'] = (x%32, y%32)
-                    loss_dict['pred_x, pred_y'] = (grid_x*32, grid_y*32)
+                    loss_dict['pred_x, pred_y'] = (pred_pos_all[rand_idx][0][int(y//32)][int(x//32)].item()*32, pred_pos_all[rand_idx][1][int(y//32)][int(x//32)].item()*32)
 
                     display_image_with_coordinates(img, [(x, y)], pred_list, filename, loss_dict)
 
