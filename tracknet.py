@@ -180,7 +180,7 @@ class TrackNetLoss:
 
                     pred_conf_np = pred_conf.numpy()
                     y_positions, x_positions = np.where(pred_conf_np >= 0.5)
-                    pred_coordinates = list(zip(y_positions, x_positions))
+                    pred_coordinates = list(zip(x_positions, y_positions))
 
                     pred_list = []
                     for pred_x, pred_y in pred_coordinates:
