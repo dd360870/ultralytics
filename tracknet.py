@@ -41,7 +41,7 @@ from pathlib import Path
 
 weight_pos = 1
 weight_mov = 1
-weight_conf = 400
+weight_conf = 4000
 # check_training_img_path = r'C:\Users\user1\bartek\github\BartekTao\datasets\tracknet\check_training_img\img_'
 check_training_img_path = r'/usr/src/datasets/tracknet/visualize_train_img/img_'
 check_val_img_path = r'/usr/src/datasets/tracknet/visualize_val_img/img_'
@@ -147,7 +147,7 @@ class TrackNetLoss:
             #     pred_dxdy_tensor = torch.stack(pred_dxdy_list, dim=0)
             #     target_dxdy_tensor = torch.stack(target_dxdy_list, dim=0)
             #     move_loss = self.mse(pred_dxdy_tensor, target_dxdy_tensor)
-            move_loss = 640*self.mse(pred_mov, target_mov) / (1 if mask_has_ball.sum() == 0 else mask_has_ball.sum())
+            # move_loss = 640*self.mse(pred_mov, target_mov) / (1 if mask_has_ball.sum() == 0 else mask_has_ball.sum())
             # if (self.batch_count%400 == 0 and pred_mov.requires_grad) or (self.batch_count%20 == 0 and not pred_mov.requires_grad):
             #     filename = f'{self.batch_count//1594}_{int(self.batch_count%1594)}_mov_{pred_mov.requires_grad}'
             #     y_true_cpu = target_mov.cpu()
@@ -172,35 +172,34 @@ class TrackNetLoss:
             if (self.batch_count%400 == 0 and pred_scores.requires_grad and idx == 15) or (self.batch_count%20 == 0 and not pred_scores.requires_grad and idx == 15):
                 pred_conf_all = torch.sigmoid(pred_scores.detach()).cpu()
                 pred_pos_all = pred_pos.detach().clone()
-                pred_mov_all = pred_mov.detach().clone()
                 for rand_idx in range(10):
                     pred_conf = pred_conf_all[rand_idx]
                     img = batch_img[idx][rand_idx]
                     x = int(batch_target[idx][rand_idx][2].item())
                     y = int(batch_target[idx][rand_idx][3].item())
-                    dx = int(batch_target[idx][rand_idx][4].item())
-                    dy = int(batch_target[idx][rand_idx][5].item())
-                    max_position = torch.argmax(pred_conf)
-                    max_y, max_x = np.unravel_index(max_position, pred_conf.shape)
-                    grid_x = pred_pos_all[rand_idx][0][max_y][max_x].item()
-                    grid_y = pred_pos_all[rand_idx][1][max_y][max_x].item()
-                    pred_dx = pred_mov_all[rand_idx][0][max_y][max_x].item()
-                    pred_dy = pred_mov_all[rand_idx][1][max_y][max_x].item()
+
+                    pred_conf_np = pred_conf.numpy()
+                    y_positions, x_positions = np.where(pred_conf_np >= 0.5)
+                    pred_coordinates = list(zip(y_positions, x_positions))
+
+                    pred_list = []
+                    for pred_x, pred_y in pred_coordinates:
+                        pred_list.append((pred_x, pred_y, pred_pos_all[rand_idx][0][pred_x][pred_y].item(), pred_pos_all[rand_idx][1][pred_x][pred_y].item()), pred_conf[pred_x][pred_y])
+
                     filename = f'{self.batch_count//1594}_{int(self.batch_count%1594)}_{rand_idx}_{pred_scores.requires_grad}'
 
                     count_ge_05 = np.count_nonzero(pred_conf >= 0.5)
                     count_lt_05 = np.count_nonzero(pred_conf < 0.5)
-                    loss_list = [conf_loss.item()]
-                    loss_list.append(position_loss.item())
-                    loss_list.append(move_loss.item())
-                    loss_list.append(count_ge_05)
-                    loss_list.append(count_lt_05)
-                    loss_list.append(pred_conf[int(y//32)][int(x//32)])
-                    loss_list.append((x%32, y%32))
-                    loss_list.append((grid_x*32, grid_y*32))
-                    loss_list.append((dx, dy, pred_dx*640, pred_dy*640))
+                    loss_dict = {}
+                    loss_dict['conf_loss'] = conf_loss.item()
+                    loss_dict['position_loss'] = position_loss.item()
+                    loss_dict['pred_conf >= 0.5 count'] = count_ge_05
+                    loss_dict['pred_conf < 0.5 count'] = count_lt_05
+                    loss_dict['GT corresponding pred_conf'] = pred_conf[int(y//32)][int(x//32)]
+                    loss_dict['x, y'] = (x%32, y%32)
+                    loss_dict['pred_x, pred_y'] = (grid_x*32, grid_y*32)
 
-                    display_image_with_coordinates(img, [(x, y)], [((max_x + grid_x)*32, (max_y + grid_y)*32)], filename, loss_list)
+                    display_image_with_coordinates(img, [(x, y)], pred_list, filename, loss_dict)
 
             loss[0] += position_loss * weight_pos
             loss[1] += move_loss * weight_mov
@@ -717,14 +716,7 @@ class TrackNetPredictor(BasePredictor):
 # # Evaluate the model's performance on the validation set
 # results = model.val()
 
-def display_image_with_coordinates(img_tensor, coordinates, p_coordinates, fileName, input_number = None):
-    """
-    Display an image with annotated coordinates.
-
-    Parameters:
-    - img_tensor (torch.Tensor): The image tensor of shape (C, H, W) or (H, W, C).
-    - coordinates (list of tuples): A list of (X, Y) coordinates to be annotated.
-    """
+def display_image_with_coordinates(img_tensor, target, pred, fileName, input_number = None):
     
     # Convert the image tensor to numpy array
     img_array = img_tensor.cpu().numpy()
@@ -738,11 +730,20 @@ def display_image_with_coordinates(img_tensor, coordinates, p_coordinates, fileN
     img_height, img_width = img_array.shape[:2]
 
     # Plot each coordinate
-    for (x, y) in coordinates:
-        ax.scatter(x, y, s=50, c='red', marker='o')
+    for (x, y) in target:
+        cell_x = x//32*32
+        cell_y = (y//32)*32
+        rect = patches.Rectangle(xy=(cell_x, cell_y), height=32, width=32, edgecolor='red', facecolor='none')
+        ax.add_patch(rect)
+        ax.scatter(x, y, s=5, c='red', marker='o')
 
-    for (x, y) in p_coordinates:
-        ax.scatter(x, y, s=50, c='blue', marker='o')
+    for (x, y, dx, dy, conf) in pred:
+        x *= 32
+        y *= 32
+        rect = patches.Rectangle(xy=(x, y), height=32, width=32, edgecolor='blue', facecolor='none')
+        ax.add_patch(rect)
+        ax.text(x + 32, y, str(conf), verticalalignment='bottom', horizontalalignment='right')
+        ax.scatter(x+dx*32, y+dy*32, s=5, c='blue', marker='o')
 
     # for i in range(p_array.shape[0]):
     #     for j in range(p_array.shape[1]):
@@ -753,7 +754,11 @@ def display_image_with_coordinates(img_tensor, coordinates, p_coordinates, fileN
     #         # Plotting the value
     #         ax.text(scaled_x, scaled_y, str(p_array[i, j]), color='blue', fontsize=8)
     if input_number:
-        ax.text(img_width * 0.9, img_height * 0.1, str(input_number), color='black', fontsize=12, bbox=dict(facecolor='white', alpha=0.5))
+        text_to_display = ""
+        for k, v in input_number.items():
+            text_to_display += k + ':' + str(v) + '\n'
+
+        ax.text(img_width * 0.9, img_height * 0.1, text_to_display, color='black', fontsize=12, bbox=dict(facecolor='white', alpha=0.5))
     # plt.show()
 
     plt.savefig(check_training_img_path+fileName, bbox_inches='tight')
