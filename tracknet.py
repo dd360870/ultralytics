@@ -743,7 +743,7 @@ def display_image_with_coordinates(img_tensor, target, pred, fileName, input_num
         y *= 32
         rect = patches.Rectangle(xy=(x, y), height=32, width=32, edgecolor='blue', facecolor='none')
         ax.add_patch(rect)
-        ax.text(x + 32, y, str(conf), verticalalignment='bottom', horizontalalignment='right')
+        ax.text(x + 32, y, str(conf), verticalalignment='bottom', horizontalalignment='right', fontsize=6)
         ax.scatter(x+dx*32, y+dy*32, s=5, c='blue', marker='o')
 
     # for i in range(p_array.shape[0]):
