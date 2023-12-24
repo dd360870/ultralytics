@@ -184,7 +184,7 @@ class TrackNetLoss:
 
                     pred_list = []
                     for pred_x, pred_y in pred_coordinates:
-                        pred_list.append((pred_x, pred_y, pred_pos_all[rand_idx][0][pred_x][pred_y].item(), pred_pos_all[rand_idx][1][pred_x][pred_y].item()), pred_conf[pred_x][pred_y])
+                        pred_list.append((pred_x, pred_y, pred_pos_all[rand_idx][0][pred_x][pred_y].item(), pred_pos_all[rand_idx][1][pred_x][pred_y].item(), pred_conf[pred_x][pred_y]))
 
                     filename = f'{self.batch_count//1594}_{int(self.batch_count%1594)}_{rand_idx}_{pred_scores.requires_grad}'
 
