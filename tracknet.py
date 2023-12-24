@@ -196,7 +196,7 @@ class TrackNetLoss:
                     loss_dict['position_loss'] = position_loss.item()
                     loss_dict['pred_conf >= 0.5 count'] = count_ge_05
                     loss_dict['pred_conf < 0.5 count'] = count_lt_05
-                    loss_dict['GT corresponding pred_conf'] = pred_conf[int(y//32)][int(x//32)]
+                    loss_dict['GT corresponding pred_conf'] = pred_conf[int(y//32)][int(x//32)].item()
                     loss_dict['x, y'] = (x%32, y%32)
                     loss_dict['pred_x, pred_y'] = (grid_x*32, grid_y*32)
 
@@ -736,7 +736,7 @@ def display_image_with_coordinates(img_tensor, target, pred, fileName, input_num
         cell_y = (y//32)*32
         rect = patches.Rectangle(xy=(cell_x, cell_y), height=32, width=32, edgecolor='red', facecolor='none')
         ax.add_patch(rect)
-        ax.scatter(x, y, s=5, c='red', marker='o')
+        ax.scatter(x, y, s=1, c='red', marker='o')
 
     for (x, y, dx, dy, conf) in pred:
         x *= 32
@@ -744,7 +744,7 @@ def display_image_with_coordinates(img_tensor, target, pred, fileName, input_num
         rect = patches.Rectangle(xy=(x, y), height=32, width=32, edgecolor='blue', facecolor='none', linewidth=0.5)
         ax.add_patch(rect)
         ax.text(x + 32, y+32, str(conf), verticalalignment='bottom', horizontalalignment='right', fontsize=5)
-        ax.scatter(x+dx*32, y+dy*32, s=5, c='blue', marker='o')
+        ax.scatter(x+dx*32, y+dy*32, s=1, c='blue', marker='o')
 
     # for i in range(p_array.shape[0]):
     #     for j in range(p_array.shape[1]):
