@@ -285,9 +285,9 @@ def custom_loss(y_true, y_pred, class_weight, batch_count):
     custom_weights = torch.square(1 - y_pred) * y_true + torch.square(y_pred) * (1 - y_true)
     # custom_weights = (1 - y_pred) * y_true + (y_pred) * (1 - y_true)
 
-    y_true_squeeze  = y_true.any(dim=0, keepdim=True).repeat(10, 1, 1).int()
+    # y_true_squeeze  = y_true.any(dim=0, keepdim=True).repeat(10, 1, 1).int()
 
-    class_weights = class_weight[0] * (1 - y_true_squeeze) + class_weight[1] * y_true_squeeze
+    class_weights = class_weight[0] * (1 - y_true) + class_weight[1] * y_true
 
     loss = (-1) * class_weights * custom_weights * (y_true * torch.log(torch.clamp(y_pred, min=torch.finfo(y_pred.dtype).eps, max=1)) + 
                                                     (1 - y_true) * torch.log(torch.clamp(1 - y_pred, min=torch.finfo(y_pred.dtype).eps, max=1)))
