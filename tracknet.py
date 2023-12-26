@@ -292,7 +292,7 @@ def custom_loss(y_true, y_pred, class_weight, batch_count):
     loss = (-1) * class_weights * custom_weights * (y_true * torch.log(torch.clamp(y_pred, min=torch.finfo(y_pred.dtype).eps, max=1)) + 
                                                     (1 - y_true) * torch.log(torch.clamp(1 - y_pred, min=torch.finfo(y_pred.dtype).eps, max=1)))
     
-    loss = torch.mean(loss)
+    loss = torch.sum(loss)
     
     if (batch_count%400 == 0 and y_pred.requires_grad) or (batch_count%20 == 0 and not y_pred.requires_grad):
         filename = f'{batch_count//653}_{int(batch_count%653)}_{y_pred.requires_grad}'
