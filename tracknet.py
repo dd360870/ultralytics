@@ -78,6 +78,8 @@ class TrackNetLoss:
         self.FN = 0
 
     def __call__(self, preds, batch):
+        if preds.requires_grad:
+            self.train_count += 1
         # preds = [[batch*50*20*20]]
         # batch['target'] = [batch*10*6]
         preds = preds[0].to(self.device) # only pick first (stride = 16)
@@ -175,13 +177,12 @@ class TrackNetLoss:
                 LOGGER.warning("NaN or Inf values in conf_loss!")
 
             if pred_scores.requires_grad:
-                self.train_count += 1
                 pred_binary = pred_scores >= 0.5
                 self.TP += torch.sum((pred_binary == 1) & (cls_targets == 1))
                 self.FP += torch.sum((pred_binary == 1) & (cls_targets == 0))
                 self.TN += torch.sum((pred_binary == 0) & (cls_targets == 0))
                 self.FN += torch.sum((pred_binary == 0) & (cls_targets == 1))
-                if self.train_count >= 979 and self.train_count % 979 == 0:
+                if self.train_count >= 979 and self.train_count%979 == 0:
                     if self.TP > 0:
                         precision = self.TP/(self.TP+self.FP)
                         recall = self.TP/(self.TP+self.FN)
