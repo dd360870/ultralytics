@@ -81,7 +81,7 @@ class TrackNetLoss:
         # preds = [[batch*50*20*20]]
         # batch['target'] = [batch*10*6]
         preds = preds[0].to(self.device) # only pick first (stride = 16)
-        
+
         if preds.requires_grad:
             self.train_count += 1
         batch_target = batch['target'].to(self.device)
@@ -198,12 +198,15 @@ class TrackNetLoss:
             # check
             if (self.batch_count%400 == 0 and pred_scores.requires_grad and idx == 15) or (self.batch_count%20 == 0 and not pred_scores.requires_grad and idx == 15):
                 pred_conf_all = torch.sigmoid(pred_scores.detach()).cpu()
+                pred_mov_all = pred_mov.detach().clone()
                 pred_pos_all = pred_pos.detach().clone()
                 for rand_idx in range(10):
                     pred_conf = pred_conf_all[rand_idx]
                     img = batch_img[idx][rand_idx]
                     x = int(batch_target[idx][rand_idx][2].item())
                     y = int(batch_target[idx][rand_idx][3].item())
+                    dx = int(batch_target[idx][rand_idx][4].item())
+                    dy = int(batch_target[idx][rand_idx][5].item())
 
                     pred_conf_np = pred_conf.numpy()
                     y_positions, x_positions = np.where(pred_conf_np >= 0.5)
@@ -225,6 +228,8 @@ class TrackNetLoss:
                     loss_dict['pred_conf < 0.5 count'] = count_lt_05
                     loss_dict['x, y'] = (x%32, y%32)
                     loss_dict['pred_x, pred_y'] = (pred_pos_all[rand_idx][0][int(y//32)][int(x//32)].item()*32, pred_pos_all[rand_idx][1][int(y//32)][int(x//32)].item()*32)
+                    loss_dict['dx, dy'] = (dx, dy)
+                    loss_dict['pred_dx, pred_dy'] = (pred_mov_all[rand_idx][0][int(y//32)][int(x//32)].item()*640, pred_mov_all[rand_idx][1][int(y//32)][int(x//32)].item()*640)
 
                     display_image_with_coordinates(img, [(x, y)], pred_list, filename, loss_dict)
 
