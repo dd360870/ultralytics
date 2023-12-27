@@ -71,6 +71,11 @@ class TrackNetLoss:
         self.use_dfl = m.reg_max > 1
 
         self.batch_count = 0
+        self.train_count = 0
+        self.TP = 0
+        self.TN = 0
+        self.FP = 0
+        self.FN = 0
 
     def __call__(self, preds, batch):
         # preds = [[batch*50*20*20]]
@@ -168,6 +173,25 @@ class TrackNetLoss:
                 LOGGER.warning("NaN or Inf values in position_loss!")
             if torch.isnan(conf_loss).any() or torch.isinf(conf_loss).any():
                 LOGGER.warning("NaN or Inf values in conf_loss!")
+
+            if pred_scores.requires_grad:
+                self.train_count += 1
+                pred_binary = pred_scores >= 0.5
+                self.TP += torch.sum((pred_binary == 1) & (cls_targets == 1))
+                self.FP += torch.sum((pred_binary == 1) & (cls_targets == 0))
+                self.TN += torch.sum((pred_binary == 0) & (cls_targets == 0))
+                self.FN += torch.sum((pred_binary == 0) & (cls_targets == 1))
+                if self.train_count % 979 == 0:
+                    if self.TP > 0:
+                        precision = self.TP/(self.TP+self.FP)
+                        recall = self.TP/(self.TP+self.FN)
+                        f1 = (2*precision*recall)/(precision+recall)
+                    acc = (self.TN + self.TP) / (self.FN+self.FP+self.TN + self.TP)
+                    print(f"Training Accuracy: {acc:.4f}, Training Precision: {precision:.4f}, Training Recall: {recall:.4f}, , Training F1-Score: {f1:.4f}")
+                    self.TP = 0
+                    self.FP = 0
+                    self.TN = 0
+                    self.FN = 0
 
             # check
             if (self.batch_count%400 == 0 and pred_scores.requires_grad and idx == 15) or (self.batch_count%20 == 0 and not pred_scores.requires_grad and idx == 15):
