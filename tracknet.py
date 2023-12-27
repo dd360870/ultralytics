@@ -137,7 +137,7 @@ class TrackNetLoss:
             #     pred_xy_tensor = torch.stack(pred_xy_list, dim=0)
             #     target_xy_tensor = torch.stack(target_xy_list, dim=0)
             #     position_loss = self.mse(pred_xy_tensor, target_xy_tensor)
-            position_loss = 32*self.mse(pred_pos, target_pos) / (1 if mask_has_ball.sum() == 0 else mask_has_ball.sum())
+            position_loss = 32*self.mse(pred_pos, target_pos) # / (1 if mask_has_ball.sum() == 0 else mask_has_ball.sum())
             # if (self.batch_count%400 == 0 and pred_pos.requires_grad) or (self.batch_count%20 == 0 and not pred_pos.requires_grad):
             #     filename = f'{self.batch_count//979}_{int(self.batch_count%979)}_pos_{pred_pos.requires_grad}'
             #     y_true_cpu = target_pos.cpu()
@@ -147,7 +147,7 @@ class TrackNetLoss:
             #     pred_dxdy_tensor = torch.stack(pred_dxdy_list, dim=0)
             #     target_dxdy_tensor = torch.stack(target_dxdy_list, dim=0)
             #     move_loss = self.mse(pred_dxdy_tensor, target_dxdy_tensor)
-            # move_loss = 640*self.mse(pred_mov, target_mov) / (1 if mask_has_ball.sum() == 0 else mask_has_ball.sum())
+            move_loss = 640*self.mse(pred_mov, target_mov) # / (1 if mask_has_ball.sum() == 0 else mask_has_ball.sum())
             # if (self.batch_count%400 == 0 and pred_mov.requires_grad) or (self.batch_count%20 == 0 and not pred_mov.requires_grad):
             #     filename = f'{self.batch_count//979}_{int(self.batch_count%979)}_mov_{pred_mov.requires_grad}'
             #     y_true_cpu = target_mov.cpu()
