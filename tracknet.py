@@ -78,11 +78,12 @@ class TrackNetLoss:
         self.FN = 0
 
     def __call__(self, preds, batch):
-        if preds.requires_grad:
-            self.train_count += 1
         # preds = [[batch*50*20*20]]
         # batch['target'] = [batch*10*6]
         preds = preds[0].to(self.device) # only pick first (stride = 16)
+        
+        if preds.requires_grad:
+            self.train_count += 1
         batch_target = batch['target'].to(self.device)
         batch_img = batch['img'].to(self.device)
 
