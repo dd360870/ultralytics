@@ -181,13 +181,13 @@ class TrackNetLoss:
                 self.FP += torch.sum((pred_binary == 1) & (cls_targets == 0))
                 self.TN += torch.sum((pred_binary == 0) & (cls_targets == 0))
                 self.FN += torch.sum((pred_binary == 0) & (cls_targets == 1))
-                if self.train_count % 979 == 0:
+                if self.train_count//979 > 0 and self.train_count % 979 == 0:
                     if self.TP > 0:
                         precision = self.TP/(self.TP+self.FP)
                         recall = self.TP/(self.TP+self.FN)
                         f1 = (2*precision*recall)/(precision+recall)
                     acc = (self.TN + self.TP) / (self.FN+self.FP+self.TN + self.TP)
-                    print(f"Training Accuracy: {acc:.4f}, Training Precision: {precision:.4f}, Training Recall: {recall:.4f}, , Training F1-Score: {f1:.4f}")
+                    print(f"\nTraining Accuracy: {acc:.4f}, Training Precision: {precision:.4f}, Training Recall: {recall:.4f}, , Training F1-Score: {f1:.4f}\n")
                     self.TP = 0
                     self.FP = 0
                     self.TN = 0
@@ -762,7 +762,7 @@ def display_image_with_coordinates(img_tensor, target, pred, fileName, input_num
         cell_y = (y//32)*32
         rect = patches.Rectangle(xy=(cell_x, cell_y), height=32, width=32, edgecolor='red', facecolor='none')
         ax.add_patch(rect)
-        ax.scatter(x, y, s=1, c='red', marker='o')
+        ax.scatter(x, y, s=1.8, c='red', marker='o')
 
     for (x, y, dx, dy, conf) in pred:
         x *= 32
@@ -772,7 +772,7 @@ def display_image_with_coordinates(img_tensor, target, pred, fileName, input_num
         text = ax.text(x + 32, y+32, str(conf), verticalalignment='bottom', horizontalalignment='right', fontsize=5)
         text.set_path_effects([patheffects.Stroke(linewidth=2, foreground=(1, 1, 1, 0.3)),
                        patheffects.Normal()])
-        ax.scatter(x+dx*32, y+dy*32, s=1, c='blue', marker='o')
+        ax.scatter(x+dx*32, y+dy*32, s=1.5, c='blue', marker='o')
 
     # for i in range(p_array.shape[0]):
     #     for j in range(p_array.shape[1]):
