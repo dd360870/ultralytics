@@ -181,7 +181,7 @@ class TrackNetLoss:
                 self.FP += torch.sum((pred_binary == 1) & (cls_targets == 0))
                 self.TN += torch.sum((pred_binary == 0) & (cls_targets == 0))
                 self.FN += torch.sum((pred_binary == 0) & (cls_targets == 1))
-                if self.train_count//979 > 0 and self.train_count % 979 == 0:
+                if self.train_count >= 979 and self.train_count % 979 == 0:
                     if self.TP > 0:
                         precision = self.TP/(self.TP+self.FP)
                         recall = self.TP/(self.TP+self.FN)
