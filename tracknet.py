@@ -214,6 +214,7 @@ class TrackNetLoss:
                     loss_dict = {}
                     loss_dict['conf_loss'] = conf_loss.item()
                     loss_dict['position_loss'] = position_loss.item()
+                    loss_dict['moving_loss'] = move_loss.item()
                     loss_dict['pred_conf >= 0.5 count'] = count_ge_05
                     loss_dict['pred_conf < 0.5 count'] = count_lt_05
                     loss_dict['x, y'] = (x%32, y%32)
