@@ -183,17 +183,7 @@ class TrackNetLoss:
                 self.FP += torch.sum((pred_binary == 1) & (cls_targets == 0))
                 self.TN += torch.sum((pred_binary == 0) & (cls_targets == 0))
                 self.FN += torch.sum((pred_binary == 0) & (cls_targets == 1))
-                if self.train_count >= 979 and self.train_count%979 == 0:
-                    if self.TP > 0:
-                        precision = self.TP/(self.TP+self.FP)
-                        recall = self.TP/(self.TP+self.FN)
-                        f1 = (2*precision*recall)/(precision+recall)
-                    acc = (self.TN + self.TP) / (self.FN+self.FP+self.TN + self.TP)
-                    print(f"\nTraining Accuracy: {acc:.4f}, Training Precision: {precision:.4f}, Training Recall: {recall:.4f}, , Training F1-Score: {f1:.4f}\n")
-                    self.TP = 0
-                    self.FP = 0
-                    self.TN = 0
-                    self.FN = 0
+                
 
             # check
             if (self.batch_count%400 == 0 and pred_scores.requires_grad and idx == 15) or (self.batch_count%20 == 0 and not pred_scores.requires_grad and idx == 15):
@@ -240,6 +230,18 @@ class TrackNetLoss:
         tlose_item = loss.detach()
         # LOGGER.info(f'tloss: {tlose}, tlose_item: {tlose_item}')
         self.batch_count+=1
+
+        if preds.requires_grad and self.train_count >= 979 and self.train_count%979 == 0:
+            if self.TP > 0:
+                precision = self.TP/(self.TP+self.FP)
+                recall = self.TP/(self.TP+self.FN)
+                f1 = (2*precision*recall)/(precision+recall)
+            acc = (self.TN + self.TP) / (self.FN+self.FP+self.TN + self.TP)
+            print(f"\nTraining Accuracy: {acc:.4f}, Training Precision: {precision:.4f}, Training Recall: {recall:.4f}, , Training F1-Score: {f1:.4f}\n")
+            self.TP = 0
+            self.FP = 0
+            self.TN = 0
+            self.FN = 0
         return tlose, tlose_item
 def save_pred_and_loss(predictions, loss, filename, t_xy):
     """
