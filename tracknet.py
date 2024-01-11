@@ -204,9 +204,15 @@ class TrackNetLoss:
                     pred_coordinates = list(zip(x_positions, y_positions))
 
                     pred_list = []
-                    for pred_x, pred_y in pred_coordinates:
-                        pred_conf_format = "{:.2f}".format(pred_conf[pred_y][pred_x].item())
-                        pred_list.append((pred_x, pred_y, pred_pos_all[rand_idx][0][pred_y][pred_x].item(), pred_pos_all[rand_idx][1][pred_y][pred_x].item(), pred_conf_format))
+                    for pred_x_coordinates, pred_y_coordinates in pred_coordinates:
+                        pred_conf_format = "{:.2f}".format(pred_conf[pred_y_coordinates][pred_x_coordinates].item())
+                        pred_list.append((pred_x_coordinates, 
+                                          pred_y_coordinates, 
+                                          pred_pos_all[rand_idx][0][pred_y_coordinates][pred_x_coordinates].item(), 
+                                          pred_pos_all[rand_idx][1][pred_y_coordinates][pred_x_coordinates].item(), 
+                                          pred_mov_all[rand_idx][0][pred_y_coordinates][pred_x_coordinates].item(), 
+                                          pred_mov_all[rand_idx][1][pred_y_coordinates][pred_x_coordinates].item(), 
+                                          pred_conf_format))
 
                     filename = f'{self.batch_count//979}_{int(self.batch_count%979)}_{rand_idx}_{pred_scores.requires_grad}'
 
@@ -223,7 +229,7 @@ class TrackNetLoss:
                     loss_dict['dx, dy'] = (dx, dy)
                     loss_dict['pred_dx, pred_dy'] = (pred_mov_all[rand_idx][0][int(y//32)][int(x//32)].item()*640, pred_mov_all[rand_idx][1][int(y//32)][int(x//32)].item()*640)
 
-                    display_image_with_coordinates(img, [(x, y)], pred_list, filename, loss_dict)
+                    display_image_with_coordinates(img, [(x, y, dx, dy)], pred_list, filename, loss_dict)
 
             loss[0] += position_loss * weight_pos
             loss[1] += move_loss * weight_mov
@@ -768,22 +774,28 @@ def display_image_with_coordinates(img_tensor, target, pred, fileName, input_num
     img_height, img_width = img_array.shape[:2]
 
     # Plot each coordinate
-    for (x, y) in target:
+    for (x, y, dx, dy) in target:
         cell_x = x//32*32
         cell_y = (y//32)*32
         rect = patches.Rectangle(xy=(cell_x, cell_y), height=32, width=32, edgecolor='red', facecolor='none')
         ax.add_patch(rect)
         ax.scatter(x, y, s=1.8, c='red', marker='o')
+        ax.scatter(x+dx, y+dy, s=1.8, c='red', marker='o', facecolors='none')
 
-    for (x, y, dx, dy, conf) in pred:
-        x *= 32
-        y *= 32
-        rect = patches.Rectangle(xy=(x, y), height=32, width=32, edgecolor='blue', facecolor='none', linewidth=0.5)
+    for (x_coordinates, y_coordinates, x, y, dx, dy, conf) in pred:
+        x_coordinates *= 32
+        y_coordinates *= 32
+        current_x = x_coordinates+x*32
+        current_y = y_coordinates+y*32
+        next_x = current_x+dx*640
+        next_y = current_y+dy*32
+        rect = patches.Rectangle(xy=(x_coordinates, y_coordinates), height=32, width=32, edgecolor='blue', facecolor='none', linewidth=0.5)
         ax.add_patch(rect)
-        text = ax.text(x + 32, y+32, str(conf), verticalalignment='bottom', horizontalalignment='right', fontsize=5)
+        text = ax.text(x_coordinates + 32, y_coordinates+32, str(conf), verticalalignment='bottom', horizontalalignment='right', fontsize=5)
         text.set_path_effects([patheffects.Stroke(linewidth=2, foreground=(1, 1, 1, 0.3)),
                        patheffects.Normal()])
-        ax.scatter(x+dx*32, y+dy*32, s=1.5, c='blue', marker='o')
+        ax.scatter(current_x, current_y, s=1.5, c='blue', marker='o')
+        ax.scatter(next_x, next_y, s=1.5, c='blue', marker='o', facecolors='none')
 
     # for i in range(p_array.shape[0]):
     #     for j in range(p_array.shape[1]):
