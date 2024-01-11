@@ -842,46 +842,49 @@ def main(model_path, mode, data, epochs, plots, batch, source):
             
             if torch.cuda.is_available():
                 input_data = input_data.cuda()
-            #start_time = time.time()
+            start_time = time.time()
 
             # [1*50*20*20]
             p = predictor.inference(input_data)
+            end_time = time.time()
+            elapsed_time = (end_time - start_time) * 1000
+            elapsed_times+=elapsed_time
             # [5*20*20]
-            p_check = p[0, 5*idx:5*(idx+1), :]
-            p_conf = torch.sigmoid(p_check[4, :, :])
-            p_cell_x = torch.sigmoid(p_check[0, :, :])
-            p_cell_y = torch.sigmoid(p_check[1, :, :])
+            # p_check = p[0, 5*idx:5*(idx+1), :]
+            # p_conf = torch.sigmoid(p_check[4, :, :])
+            # p_cell_x = torch.sigmoid(p_check[0, :, :])
+            # p_cell_y = torch.sigmoid(p_check[1, :, :])
 
-            max_position = torch.argmax(p_conf)
-            max_y, max_x = np.unravel_index(max_position, p_conf.shape)
-            p_x = p_cell_x[max_x, max_y]*32
-            p_y = p_cell_y[max_x, max_y]*32
-            p_gridx = max_x*32 + p_cell_x[max_x, max_y]*32
-            p_gridy = max_y*32 + p_cell_y[max_x, max_y]*32
-            x, y, gx, gy = targetGrid(t_x, t_y, 32)
+            # max_position = torch.argmax(p_conf)
+            # max_y, max_x = np.unravel_index(max_position, p_conf.shape)
+            # p_x = p_cell_x[max_x, max_y]*32
+            # p_y = p_cell_y[max_x, max_y]*32
+            # p_gridx = max_x*32 + p_cell_x[max_x, max_y]*32
+            # p_gridy = max_y*32 + p_cell_y[max_x, max_y]*32
+            # x, y, gx, gy = targetGrid(t_x, t_y, 32)
 
-            if hasBall and i%10 == 0:
-                pos_weight = torch.tensor([400])
-                l = nn.BCEWithLogitsLoss(reduction='none', pos_weight=pos_weight)
-                cls_targets = torch.zeros(p_conf.shape[0], p_conf.shape[1])
-                cls_targets[x][y] = 1
-                cls_pred = p_check[4, :, :]
-                count_ge_05 = np.count_nonzero(p_conf >= 0.5)
-                count_lt_05 = np.count_nonzero(p_conf < 0.5)
-                correct = True if p_conf[x][y]>=0.5 else False
-                loss = l(cls_pred, cls_targets).sum()
-                loss_list = [loss.item()]
-                loss_list.append(count_ge_05)
-                loss_list.append(count_lt_05)
-                loss_list.append(correct)
-                loss_list.append(p_conf[x][y])
-                display_image_with_coordinates(input_data[0][idx], [(x*32, y*32)], [(max_x*32, max_y*32)], str(i), loss_list)
+            # if hasBall and i%10 == 0:
+            #     pos_weight = torch.tensor([400])
+            #     l = nn.BCEWithLogitsLoss(reduction='none', pos_weight=pos_weight)
+            #     cls_targets = torch.zeros(p_conf.shape[0], p_conf.shape[1])
+            #     cls_targets[x][y] = 1
+            #     cls_pred = p_check[4, :, :]
+            #     count_ge_05 = np.count_nonzero(p_conf >= 0.5)
+            #     count_lt_05 = np.count_nonzero(p_conf < 0.5)
+            #     correct = True if p_conf[x][y]>=0.5 else False
+            #     loss = l(cls_pred, cls_targets).sum()
+            #     loss_list = [loss.item()]
+            #     loss_list.append(count_ge_05)
+            #     loss_list.append(count_lt_05)
+            #     loss_list.append(correct)
+            #     loss_list.append(p_conf[x][y])
+            #     display_image_with_coordinates(input_data[0][idx], [(x*32, y*32)], [(max_x*32, max_y*32)], str(i), loss_list)
             #end_time = time.time()
             #elapsed_time = (end_time - start_time) * 1000
             #print(f'{elapsed_time:.2f}ms')
             #elapsed_times+=elapsed_time
 
-        print(f"程序運行了 {elapsed_times:.2f} 毫秒, 平均一個batch {(elapsed_times)/len(dataloader):.2f} ms")
+        print(f"avg predict time: { elapsed_times / len(dataloader):.2f} 毫秒")
         
 
 if __name__ == "__main__":
