@@ -44,6 +44,7 @@ from pathlib import Path
 weight_pos = 1
 weight_mov = 1
 weight_conf = 4000
+weight_hit = 10000
 # check_training_img_path = r'C:\Users\user1\bartek\github\BartekTao\datasets\tracknet\check_training_img\img_'
 check_training_img_path = r'/usr/src/datasets/tracknet/visualize_train_img/img_'
 check_val_img_path = r'/usr/src/datasets/tracknet/visualize_val_img/img_'
@@ -59,8 +60,8 @@ class TrackNetLoss:
         h = model.args  # hyperparameters
 
         m = model.model[-1]  # Detect() module
-        pos_weight = torch.tensor(1000).to(device)
-        self.bce = nn.BCEWithLogitsLoss(reduction='none', pos_weight=pos_weight)
+        pos_weight = torch.tensor(weight_hit).to(device)
+        self.hit_bce = nn.BCEWithLogitsLoss(reduction='none', pos_weight=pos_weight)
         self.mse = nn.MSELoss(reduction='sum')
         self.hyp = h
         self.stride = m.stride  # model strides
@@ -88,14 +89,14 @@ class TrackNetLoss:
         batch_target = batch['target'].to(self.device)
         batch_img = batch['img'].to(self.device)
 
-        loss = torch.zeros(3, device=self.device)  # box, cls, dfl
+        loss = torch.zeros(4, device=self.device)
         batch_size = preds.shape[0]
 
         # for each batch
         for idx, pred in enumerate(preds):
             # pred = [50 * 20 * 20]
             stride = self.stride[0]
-            pred_distri, pred_scores = torch.split(pred, [40, 10], dim=0)
+            pred_distri, pred_scores, pred_hits = torch.split(pred, [40, 10, 10], dim=0)
             pred_distri = pred_distri.reshape(4, 10, 20, 20)
             pred_pos, pred_mov = torch.split(pred_distri, [2, 2], dim=0)
 
@@ -108,6 +109,7 @@ class TrackNetLoss:
             target_mov = pred_mov.detach().clone()
             
             cls_targets = torch.zeros(pred_scores.shape, device=self.device)
+            hit_targets = torch.zeros(pred_hits.shape, device=self.device)
             
             position_loss = torch.tensor(0.0, device=self.device)
             move_loss = torch.tensor(0.0, device=self.device)
@@ -120,6 +122,9 @@ class TrackNetLoss:
             
             mask_has_ball = torch.zeros_like(target_pos)
             for target_idx, target in enumerate(batch_target[idx]):
+                if target[6] == 1:
+                    grid_x, grid_y, offset_x, offset_y = targetGrid(target[2], target[3], stride)
+                    hit_targets[target_idx, grid_y, grid_x] = 1
                 if target[1] == 1:
                     # xy
                     grid_x, grid_y, offset_x, offset_y = targetGrid(target[2], target[3], stride)
@@ -172,6 +177,7 @@ class TrackNetLoss:
             # conf_loss = self.bce(pred_scores, cls_targets).sum() / target_scores_sum
 
             conf_loss = custom_loss(cls_targets, pred_scores, [1, weight_conf], self.batch_count)
+            hit_loss = self.hit_bce(pred_hits, hit_targets)
             # conf_loss = focal_loss(pred_scores, cls_targets, alpha=[0.998, 0.002], weight=weight_conf)
             if torch.isnan(position_loss).any() or torch.isinf(position_loss).any():
                 LOGGER.warning("NaN or Inf values in position_loss!")
@@ -234,6 +240,7 @@ class TrackNetLoss:
             loss[0] += position_loss * weight_pos
             loss[1] += move_loss * weight_mov
             loss[2] += conf_loss
+            loss[3] += hit_loss
         tlose = loss.sum() * batch_size
         tlose_item = loss.detach()
         # LOGGER.info(f'tloss: {tlose}, tlose_item: {tlose_item}')
@@ -413,7 +420,7 @@ class TrackNetTrainer(DetectionTrainer):
 
         return batch
     def get_validator(self):
-        self.loss_names = 'pos_loss', 'mov_loss', 'conf_loss'
+        self.loss_names = 'pos_loss', 'mov_loss', 'conf_loss', 'hit_loss'
         return TrackNetValidator(self.test_loader, save_dir=self.save_dir, args=copy(self.args))
     def progress_string(self):
         """Returns a formatted string of training progress with epoch, GPU memory, loss, instances and size."""
