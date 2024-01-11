@@ -5,6 +5,7 @@ import csv
 import os
 import time
 from matplotlib import patheffects
+from tqdm import tqdm
 import numpy as np
 import torch
 import torch.nn as nn
@@ -16,7 +17,7 @@ from ultralytics.yolo.engine.validator import BaseValidator
 from ultralytics.yolo.utils.metrics import ConfusionMatrix, DetMetrics
 from ultralytics.yolo.v8.detect.train import DetectionTrainer
 from ultralytics.nn.tasks import DetectionModel, attempt_load_one_weight
-from ultralytics.yolo.utils import LOGGER, RANK, ops
+from ultralytics.yolo.utils import LOGGER, RANK, TQDM_BAR_FORMAT, ops
 import torchvision.transforms as transforms
 from torch.utils.data import Dataset
 from torchvision import transforms
@@ -829,7 +830,7 @@ def main(model_path, mode, data, epochs, plots, batch, source):
         overrides['save'] = False
         predictor = TrackNetPredictor(overrides=overrides)
         predictor.setup_model(model=model, verbose=False)
-        pbar = enumerate(dataloader)
+        pbar = tqdm(enumerate(dataloader), total=len(dataloader), bar_format=TQDM_BAR_FORMAT)
         elapsed_times = 0.0
         for i, batch in pbar:
             target = batch['target'][0]
@@ -849,6 +850,9 @@ def main(model_path, mode, data, epochs, plots, batch, source):
             end_time = time.time()
             elapsed_time = (end_time - start_time) * 1000
             elapsed_times+=elapsed_time
+            pbar.set_description(
+                        (f'{elapsed_times / i+1:.2f}') %
+                        (f'{i}/{len(pbar)}'))
             # [5*20*20]
             # p_check = p[0, 5*idx:5*(idx+1), :]
             # p_conf = torch.sigmoid(p_check[4, :, :])
