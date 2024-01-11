@@ -850,9 +850,10 @@ def main(model_path, mode, data, epochs, plots, batch, source):
             end_time = time.time()
             elapsed_time = (end_time - start_time) * 1000
             elapsed_times+=elapsed_time
+            print(elapsed_times)
             pbar.set_description(
                         (f'{elapsed_times / i+1:.2f}') %
-                        (f'{i}/{len(pbar)}'))
+                        (f'{i+1}/{len(pbar)}'))
             # [5*20*20]
             # p_check = p[0, 5*idx:5*(idx+1), :]
             # p_conf = torch.sigmoid(p_check[4, :, :])
