@@ -154,7 +154,7 @@ class TrackNetLoss:
             #     position_loss = self.mse(pred_xy_tensor, target_xy_tensor)
             position_loss = 32*self.mse(pred_pos, target_pos) # / (1 if mask_has_ball.sum() == 0 else mask_has_ball.sum())
             # if (self.batch_count%400 == 0 and pred_pos.requires_grad) or (self.batch_count%20 == 0 and not pred_pos.requires_grad):
-            #     filename = f'{self.batch_count//979}_{int(self.batch_count%979)}_pos_{pred_pos.requires_grad}'
+            #     filename = f'{self.batch_count//1185}_{int(self.batch_count%1185)}_pos_{pred_pos.requires_grad}'
             #     y_true_cpu = target_pos.cpu()
             #     save_pos_mov_loss(pred_pos, loss, filename, y_true_cpu)
 
@@ -164,7 +164,7 @@ class TrackNetLoss:
             #     move_loss = self.mse(pred_dxdy_tensor, target_dxdy_tensor)
             move_loss = 640*self.mse(pred_mov, target_mov) # / (1 if mask_has_ball.sum() == 0 else mask_has_ball.sum())
             # if (self.batch_count%400 == 0 and pred_mov.requires_grad) or (self.batch_count%20 == 0 and not pred_mov.requires_grad):
-            #     filename = f'{self.batch_count//979}_{int(self.batch_count%979)}_mov_{pred_mov.requires_grad}'
+            #     filename = f'{self.batch_count//1185}_{int(self.batch_count%1185)}_mov_{pred_mov.requires_grad}'
             #     y_true_cpu = target_mov.cpu()
             #     save_pos_mov_loss(pred_mov, loss, filename, y_true_cpu)
 
@@ -220,7 +220,7 @@ class TrackNetLoss:
                                           pred_mov_all[rand_idx][1][pred_y_coordinates][pred_x_coordinates].item(), 
                                           pred_conf_format))
 
-                    filename = f'{self.batch_count//979}_{int(self.batch_count%979)}_{rand_idx}_{pred_scores.requires_grad}'
+                    filename = f'{self.batch_count//1185}_{int(self.batch_count%1185)}_{rand_idx}_{pred_scores.requires_grad}'
 
                     count_ge_05 = np.count_nonzero(pred_conf >= 0.5)
                     count_lt_05 = np.count_nonzero(pred_conf < 0.5)
@@ -246,7 +246,7 @@ class TrackNetLoss:
         # LOGGER.info(f'tloss: {tlose}, tlose_item: {tlose_item}')
         self.batch_count+=1
 
-        if preds.requires_grad and self.train_count >= 979 and self.train_count%979 == 0:
+        if preds.requires_grad and self.train_count >= 1185 and self.train_count%1185 == 0:
             if self.TP > 0:
                 precision = self.TP/(self.TP+self.FP)
                 recall = self.TP/(self.TP+self.FN)
@@ -344,7 +344,7 @@ def custom_loss(y_true, y_pred, class_weight, batch_count):
     loss = torch.sum(loss)
     
     if (batch_count%400 == 0 and y_pred.requires_grad) or (batch_count%20 == 0 and not y_pred.requires_grad):
-        filename = f'{batch_count//979}_{int(batch_count%979)}_{y_pred.requires_grad}'
+        filename = f'{batch_count//1185}_{int(batch_count%1185)}_{y_pred.requires_grad}'
         y_true_cpu = y_true.cpu()
         save_pred_and_loss(y_pred, loss, filename, y_true_cpu)
     return loss
@@ -486,7 +486,7 @@ class TrackNetValidator(BaseValidator):
         preds = preds[0] # only pick first (stride = 32)
         batch_target = batch['target']
         batch_size = preds.shape[0]
-        if preds.shape == (50, 20, 20):
+        if preds.shape == (60, 20, 20):
             self.update_metrics_once(0, preds, batch_target)
         else:
             # for each batch
@@ -496,7 +496,7 @@ class TrackNetValidator(BaseValidator):
     def update_metrics_once(self, batch_idx, pred, batch_target):
         # pred = [50 * 20 * 20]
         # batch_target = [10*6]
-        pred_distri, pred_scores = torch.split(pred, [40, 10], dim=0)
+        pred_distri, pred_scores, pred_hits = torch.split(pred, [40, 10, 10], dim=0)
         pred_probs = torch.sigmoid(pred_scores)
         # pred_probs = [10*20*20]
         
