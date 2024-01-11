@@ -587,13 +587,19 @@ class TrackNetDataset(Dataset):
                 ball_trajectory_df = pd.read_csv(ball_trajectory_file)
                 ball_trajectory_df['dX'] = ball_trajectory_df['X'].diff(-1).fillna(0)
                 ball_trajectory_df['dY'] = ball_trajectory_df['Y'].diff(-1).fillna(0)
-                ball_trajectory_df['hit'] = 1 if ball_trajectory_df['Event'] is 1 or ball_trajectory_df['Event'] is 2 else 0
+                ball_trajectory_df['hit'] = ((ball_trajectory_df['Event'] == 1) | (ball_trajectory_df['Event'] == 2)).astype(int)
+
+                ball_trajectory_df['prev_hit'] = ball_trajectory_df['hit'].shift(fill_value=0)
+                ball_trajectory_df['next_hit'] = ball_trajectory_df['hit'].shift(-1, fill_value=0)
+                ball_trajectory_df['hit'] = ball_trajectory_df[['hit', 'prev_hit', 'next_hit']].max(axis=1)
                 
                 ball_trajectory_df = ball_trajectory_df.drop(['Fast'], axis=1)
                 ball_trajectory_df = ball_trajectory_df.drop(['Z'], axis=1)
                 ball_trajectory_df = ball_trajectory_df.drop(['Shot'], axis=1)
                 ball_trajectory_df = ball_trajectory_df.drop(['player_X'], axis=1)
                 ball_trajectory_df = ball_trajectory_df.drop(['player_Y'], axis=1)
+                ball_trajectory_df = ball_trajectory_df.drop(['prev_hit'], axis=1)
+                ball_trajectory_df = ball_trajectory_df.drop(['next_hit'], axis=1)
 
                 # Get the directory for frames of this video
                 frame_dir = os.path.join(match_dir_path, 'frame', video_file_name)
