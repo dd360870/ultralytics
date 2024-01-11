@@ -61,7 +61,7 @@ class TrackNetLoss:
 
         m = model.model[-1]  # Detect() module
         pos_weight = torch.tensor(weight_hit).to(device)
-        self.hit_bce = nn.BCEWithLogitsLoss(reduction='none', pos_weight=pos_weight)
+        self.hit_bce = nn.BCEWithLogitsLoss(reduction='sum', pos_weight=pos_weight)
         self.mse = nn.MSELoss(reduction='sum')
         self.hyp = h
         self.stride = m.stride  # model strides
