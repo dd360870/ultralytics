@@ -791,7 +791,7 @@ def display_image_with_coordinates(img_tensor, target, pred, fileName, input_num
         next_y = current_y+dy*32
         rect = patches.Rectangle(xy=(x_coordinates, y_coordinates), height=32, width=32, edgecolor='blue', facecolor='none', linewidth=0.5)
         ax.add_patch(rect)
-        text = ax.text(x_coordinates + 32, y_coordinates+32, str(conf), verticalalignment='bottom', horizontalalignment='right', fontsize=5)
+        text = ax.text(x_coordinates+32+1, y_coordinates+32, str(conf), verticalalignment='bottom', horizontalalignment='left', fontsize=5)
         text.set_path_effects([patheffects.Stroke(linewidth=2, foreground=(1, 1, 1, 0.3)),
                        patheffects.Normal()])
         ax.scatter(current_x, current_y, s=1.4, c='blue', marker='o')
