@@ -579,8 +579,8 @@ class TrackNetDataset(Dataset):
                 
                 # Read the ball_trajectory csv file
                 ball_trajectory_df = pd.read_csv(ball_trajectory_file)
-                ball_trajectory_df['dX'] = ball_trajectory_df['X'].diff().fillna(0)
-                ball_trajectory_df['dY'] = ball_trajectory_df['Y'].diff().fillna(0)
+                ball_trajectory_df['dX'] = ball_trajectory_df['X'].diff(-1).fillna(0)
+                ball_trajectory_df['dY'] = ball_trajectory_df['Y'].diff(-1).fillna(0)
                 
                 ball_trajectory_df = ball_trajectory_df.drop(['Fast'], axis=1)
 
