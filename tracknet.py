@@ -780,7 +780,7 @@ def display_image_with_coordinates(img_tensor, target, pred, fileName, input_num
         rect = patches.Rectangle(xy=(cell_x, cell_y), height=32, width=32, edgecolor='red', facecolor='none')
         ax.add_patch(rect)
         ax.scatter(x, y, s=1.8, c='red', marker='o')
-        ax.scatter(x+dx, y+dy, s=1.8, c='red', marker='o', facecolors='none')
+        ax.scatter(x+dx, y+dy, s=1.8, c='red', marker='o', linewidth=0.8)
 
     for (x_coordinates, y_coordinates, x, y, dx, dy, conf) in pred:
         x_coordinates *= 32
@@ -795,7 +795,7 @@ def display_image_with_coordinates(img_tensor, target, pred, fileName, input_num
         text.set_path_effects([patheffects.Stroke(linewidth=2, foreground=(1, 1, 1, 0.3)),
                        patheffects.Normal()])
         ax.scatter(current_x, current_y, s=1.5, c='blue', marker='o')
-        ax.scatter(next_x, next_y, s=1.5, c='blue', marker='o', facecolors='none')
+        ax.scatter(next_x, next_y, s=1.5, c='blue', marker='o', linewidth=0.8)
 
     # for i in range(p_array.shape[0]):
     #     for j in range(p_array.shape[1]):
