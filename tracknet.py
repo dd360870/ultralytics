@@ -807,7 +807,7 @@ def display_predict_in_checkerboard(target, pred, fileName, input_number=None):
         current_x = x_coordinates + x * 32
         current_y = y_coordinates + y * 32
         next_x = current_x + dx * 640
-        next_y = current_y + dy * 32
+        next_y = current_y + dy * 640
 
         plot_x(current_x, current_y, 1, 'blue', f'predict current: {conf}')
         plot_x(next_x, next_y, 0.5, 'lightblue', 'predict next')
@@ -824,7 +824,7 @@ def display_predict_in_checkerboard(target, pred, fileName, input_number=None):
     plt.title('Prediction Visualization in Checkerboard')
 
     # Adding a legend
-    plt.legend()
+    plt.legend(loc='upper right')
 
     # Set the limits for x and y to only show the relevant area
     plt.xlim(x_min, x_max)
@@ -874,7 +874,7 @@ def display_image_with_coordinates(img_tensor, target, pred, fileName, input_num
         current_x = x_coordinates+x*32
         current_y = y_coordinates+y*32
         next_x = current_x+dx*640
-        next_y = current_y+dy*32
+        next_y = current_y+dy*640
         rect = patches.Rectangle(xy=(x_coordinates, y_coordinates), height=32, width=32, edgecolor='blue', facecolor='none', linewidth=0.5)
         ax.add_patch(rect)
         text = ax.text(x_coordinates+32+1, y_coordinates+32, str(conf), verticalalignment='bottom', horizontalalignment='left', fontsize=5)
