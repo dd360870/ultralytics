@@ -832,6 +832,7 @@ def display_predict_in_checkerboard(target, pred, fileName, input_number=None):
 
     # Save the plot to a file
     plt.savefig(check_training_img_path+fileName, dpi=300)
+    plt.close()
 
     # Show the plot
     # plt.show()
