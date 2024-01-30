@@ -824,7 +824,7 @@ def display_predict_in_checkerboard(target, pred, fileName, input_number=None):
     plt.title('Prediction Visualization in Checkerboard')
 
     # Adding a legend
-    plt.legend(loc='upper right')
+    #plt.legend(loc='upper right')
 
     # Set the limits for x and y to only show the relevant area
     plt.xlim(x_min, x_max)
