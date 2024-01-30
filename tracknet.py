@@ -843,7 +843,7 @@ def plot_x(x, y, linewidth, color, label):
     y_values1 = [y - size, y + size]
     x_values2 = [x - size, x + size]
     y_values2 = [y + size, y - size]
-    plt.plot(x_values1, y_values1, c=color, linewidth=linewidth, label=label)
+    plt.plot(x_values1, y_values1, c=color, linewidth=linewidth)
     plt.plot(x_values2, y_values2, c=color, linewidth=linewidth)
 
 def display_image_with_coordinates(img_tensor, target, pred, fileName, input_number = None):
