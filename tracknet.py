@@ -593,8 +593,8 @@ class TrackNetDataset(Dataset):
                 
                 # Read the ball_trajectory csv file
                 ball_trajectory_df = pd.read_csv(ball_trajectory_file)
-                ball_trajectory_df['dX'] = ball_trajectory_df['X'].diff(-1).fillna(0)
-                ball_trajectory_df['dY'] = ball_trajectory_df['Y'].diff(-1).fillna(0)
+                ball_trajectory_df['dX'] = -1*ball_trajectory_df['X'].diff(-1).fillna(0)
+                ball_trajectory_df['dY'] = -1*ball_trajectory_df['Y'].diff(-1).fillna(0)
                 ball_trajectory_df['hit'] = ((ball_trajectory_df['Event'] == 1) | (ball_trajectory_df['Event'] == 2)).astype(int)
 
                 ball_trajectory_df['prev_hit'] = ball_trajectory_df['hit'].shift(fill_value=0)
@@ -602,6 +602,7 @@ class TrackNetDataset(Dataset):
                 ball_trajectory_df['hit'] = ball_trajectory_df[['hit', 'prev_hit', 'next_hit']].max(axis=1)
                 
                 ball_trajectory_df = ball_trajectory_df.drop(['Fast'], axis=1)
+                ball_trajectory_df = ball_trajectory_df.drop(['Event'], axis=1)
                 ball_trajectory_df = ball_trajectory_df.drop(['Z'], axis=1)
                 ball_trajectory_df = ball_trajectory_df.drop(['Shot'], axis=1)
                 ball_trajectory_df = ball_trajectory_df.drop(['player_X'], axis=1)
