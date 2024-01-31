@@ -781,7 +781,6 @@ class TrackNetPredictor(BasePredictor):
 
 def display_predict_in_checkerboard(target, pred, fileName, input_number=None):
     x, y, dx, dy = target[0]
-    y = 640-y
 
     # Calculate the range to display based on the current position
     x_min = max(x // 32 * 32 - 32, 0)
@@ -804,7 +803,6 @@ def display_predict_in_checkerboard(target, pred, fileName, input_number=None):
     # Plotting the predictions
     i = 0
     for (x_coordinates, y_coordinates, x, y, dx, dy, conf) in pred:
-        y = 1-y
         x_coordinates *= 32
         y_coordinates *= 32
         current_x = x_coordinates + x * 32
@@ -822,6 +820,7 @@ def display_predict_in_checkerboard(target, pred, fileName, input_number=None):
     for i, line in enumerate(grid_lines_y):
         plt.axhline(y=line, color='gray', linewidth=line_widths_y[i], zorder=0)
 
+    plt.gca().invert_yaxis()
     # Adding labels and title
     plt.xlabel('X')
     plt.ylabel('Y')
