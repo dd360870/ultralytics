@@ -195,15 +195,18 @@ class TrackNetLoss:
             # check
             if (self.batch_count%400 == 0 and pred_scores.requires_grad and idx == 15) or (self.batch_count%20 == 0 and not pred_scores.requires_grad and idx == 15):
                 pred_conf_all = torch.sigmoid(pred_scores.detach()).cpu()
+                pred_hits_all = torch.sigmoid(pred_hits.detach()).cpu()
                 pred_mov_all = pred_mov.detach().clone()
                 pred_pos_all = pred_pos.detach().clone()
                 for rand_idx in range(10):
                     pred_conf = pred_conf_all[rand_idx]
+                    pred__hit = pred_hits_all[rand_idx]
                     img = batch_img[idx][rand_idx]
                     x = int(batch_target[idx][rand_idx][2].item())
                     y = int(batch_target[idx][rand_idx][3].item())
                     dx = int(batch_target[idx][rand_idx][4].item())
                     dy = int(batch_target[idx][rand_idx][5].item())
+                    hit = int(batch_target[idx][rand_idx][6].item())
 
                     pred_conf_np = pred_conf.numpy()
                     y_positions, x_positions = np.where(pred_conf_np >= 0.5)
@@ -212,13 +215,15 @@ class TrackNetLoss:
                     pred_list = []
                     for pred_x_coordinates, pred_y_coordinates in pred_coordinates:
                         pred_conf_format = "{:.2f}".format(pred_conf[pred_y_coordinates][pred_x_coordinates].item())
+                        pred_hit_format = "{:.2f}".format(pred__hit[pred_y_coordinates][pred_x_coordinates].item())
                         pred_list.append((pred_x_coordinates, 
                                           pred_y_coordinates, 
                                           pred_pos_all[rand_idx][0][pred_y_coordinates][pred_x_coordinates].item(), 
                                           pred_pos_all[rand_idx][1][pred_y_coordinates][pred_x_coordinates].item(), 
                                           pred_mov_all[rand_idx][0][pred_y_coordinates][pred_x_coordinates].item(), 
                                           pred_mov_all[rand_idx][1][pred_y_coordinates][pred_x_coordinates].item(), 
-                                          pred_conf_format))
+                                          pred_conf_format,
+                                          pred_hit_format))
 
                     filename = f'{self.batch_count//1185}_{int(self.batch_count%1185)}_{rand_idx}_{pred_scores.requires_grad}'
 
@@ -235,7 +240,7 @@ class TrackNetLoss:
                     loss_dict['dx, dy'] = (dx, dy)
                     loss_dict['pred_dx, pred_dy'] = (pred_mov_all[rand_idx][0][int(y//32)][int(x//32)].item()*640, pred_mov_all[rand_idx][1][int(y//32)][int(x//32)].item()*640)
 
-                    display_predict_in_checkerboard([(x, y, dx, dy)], pred_list, 'board_'+filename, loss_dict)
+                    display_predict_in_checkerboard([(x, y, dx, dy, hit)], pred_list, 'board_'+filename, loss_dict)
                     display_image_with_coordinates(img, [(x, y, dx, dy)], pred_list, filename, loss_dict)
 
             loss[0] += position_loss * weight_pos
@@ -781,7 +786,7 @@ class TrackNetPredictor(BasePredictor):
 # results = model.val()
 
 def display_predict_in_checkerboard(target, pred, fileName, input_number=None):
-    x, y, dx, dy = target[0]
+    x, y, dx, dy, hit = target[0]
 
     # Calculate the range to display based on the current position
     x_min = max(x // 32 * 32 - 32, 0)
@@ -798,12 +803,15 @@ def display_predict_in_checkerboard(target, pred, fileName, input_number=None):
     line_widths_x = [2 if line % 32 == 0 else 0.5 for line in grid_lines_x]
     line_widths_y = [2 if line % 32 == 0 else 0.5 for line in grid_lines_y]
 
+    if hit == 1:
+        hit_xy = (x, y)
+        plt.scatter(*hit_xy, color='red', s=8)
     plot_x(x, y, 1.3, 'red', 'gc')
     plot_x(x+dx, y+dy, 0.8, 'pink', 'gn')
 
     # Plotting the predictions
     i = 0
-    for (x_coordinates, y_coordinates, x, y, dx, dy, conf) in pred:
+    for (x_coordinates, y_coordinates, x, y, dx, dy, conf, hit) in pred:
         x_coordinates *= 32
         y_coordinates *= 32
         current_x = x_coordinates + x * 32
@@ -811,7 +819,12 @@ def display_predict_in_checkerboard(target, pred, fileName, input_number=None):
         next_x = current_x + dx * 640
         next_y = current_y + dy * 640
 
-        plot_x(current_x, current_y, 1, 'blue', f'pc{i}: {conf}')
+        if hit >= 0.5:
+            hit_xy = (current_x, current_y)
+            plt.scatter(*hit_xy, color='blue', s=8)
+            plot_x(current_x, current_y, 1, 'blue', f'pc{i}: {conf}, h: {hit}')
+        else:
+            plot_x(current_x, current_y, 1, 'blue', f'pc{i}: {conf}')
         plot_x(next_x, next_y, 0.5, (0.34, 0.425, 0.95), f'pn{i}')
         i+=1
 
