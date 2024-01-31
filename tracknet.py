@@ -802,6 +802,7 @@ def display_predict_in_checkerboard(target, pred, fileName, input_number=None):
     plot_x(x+dx, y+dy, 0.8, 'pink', 'gn')
 
     # Plotting the predictions
+    i = 0
     for (x_coordinates, y_coordinates, x, y, dx, dy, conf) in pred:
         y = 1-y
         x_coordinates *= 32
@@ -811,8 +812,9 @@ def display_predict_in_checkerboard(target, pred, fileName, input_number=None):
         next_x = current_x + dx * 640
         next_y = current_y + dy * 640
 
-        plot_x(current_x, current_y, 1, 'blue', f'pc: {conf}')
-        plot_x(next_x, next_y, 0.5, 'lightblue', 'pn')
+        plot_x(current_x, current_y, 1, 'blue', f'pc{i}: {conf}')
+        plot_x(next_x, next_y, 0.5, (0.34, 0.425, 0.95), f'pn{i}')
+        i+=1
 
     # Adding grid lines with custom widths
     for i, line in enumerate(grid_lines_x):
