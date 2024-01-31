@@ -835,7 +835,7 @@ def display_predict_in_checkerboard(target, pred, fileName, input_number=None):
     plt.ylim(y_min, y_max)
 
     # Save the plot to a file
-    plt.savefig(check_training_img_path+fileName, dpi=100)
+    plt.savefig(check_training_img_path+fileName, dpi=200)
     plt.close()
 
 def plot_x(x, y, linewidth, color, label):
