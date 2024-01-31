@@ -883,7 +883,7 @@ def display_image_with_coordinates(img_tensor, target, pred, fileName, input_num
         ax.scatter(x, y, s=1.8, c='red', marker='o')
         ax.scatter(x+dx, y+dy, s=1.6, c='#FFC0CB', marker='o')
 
-    for (x_coordinates, y_coordinates, x, y, dx, dy, conf) in pred:
+    for (x_coordinates, y_coordinates, x, y, dx, dy, conf, hit) in pred:
         x_coordinates *= 32
         y_coordinates *= 32
         current_x = x_coordinates+x*32
