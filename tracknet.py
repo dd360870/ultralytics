@@ -819,7 +819,7 @@ def display_predict_in_checkerboard(target, pred, fileName, input_number=None):
         next_x = current_x + dx * 640
         next_y = current_y + dy * 640
 
-        if hit >= 0.5:
+        if float(hit) >= 0.5:
             hit_xy = (current_x, current_y)
             plt.scatter(*hit_xy, color='blue', s=8)
             plot_x(current_x, current_y, 1, 'blue', f'pc{i}: {conf}, h: {hit}')
