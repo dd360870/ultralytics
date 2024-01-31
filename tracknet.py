@@ -235,8 +235,8 @@ class TrackNetLoss:
                     loss_dict['dx, dy'] = (dx, dy)
                     loss_dict['pred_dx, pred_dy'] = (pred_mov_all[rand_idx][0][int(y//32)][int(x//32)].item()*640, pred_mov_all[rand_idx][1][int(y//32)][int(x//32)].item()*640)
 
-                    display_predict_in_checkerboard([(x, y, dx, dy)], pred_list, filename, loss_dict)
-                    #display_image_with_coordinates(img, [(x, y, dx, dy)], pred_list, filename, loss_dict)
+                    display_predict_in_checkerboard([(x, y, dx, dy)], pred_list, 'board_'+filename, loss_dict)
+                    display_image_with_coordinates(img, [(x, y, dx, dy)], pred_list, filename, loss_dict)
 
             loss[0] += position_loss * weight_pos
             loss[1] += move_loss * weight_mov
@@ -781,6 +781,7 @@ class TrackNetPredictor(BasePredictor):
 
 def display_predict_in_checkerboard(target, pred, fileName, input_number=None):
     x, y, dx, dy = target[0]
+    y = 640-y
 
     # Calculate the range to display based on the current position
     x_min = max(x // 32 * 32 - 32, 0)
@@ -797,11 +798,12 @@ def display_predict_in_checkerboard(target, pred, fileName, input_number=None):
     line_widths_x = [2 if line % 32 == 0 else 0.5 for line in grid_lines_x]
     line_widths_y = [2 if line % 32 == 0 else 0.5 for line in grid_lines_y]
 
-    plot_x(x, y, 1.3, 'red', 'ground truth current')
-    plot_x(x+dx, y+dy, 0.8, 'pink', 'ground truth next')
+    plot_x(x, y, 1.3, 'red', 'gc')
+    plot_x(x+dx, y+dy, 0.8, 'pink', 'gn')
 
     # Plotting the predictions
     for (x_coordinates, y_coordinates, x, y, dx, dy, conf) in pred:
+        y = 1-y
         x_coordinates *= 32
         y_coordinates *= 32
         current_x = x_coordinates + x * 32
@@ -809,8 +811,8 @@ def display_predict_in_checkerboard(target, pred, fileName, input_number=None):
         next_x = current_x + dx * 640
         next_y = current_y + dy * 640
 
-        plot_x(current_x, current_y, 1, 'blue', f'predict current: {conf}')
-        plot_x(next_x, next_y, 0.5, 'lightblue', 'predict next')
+        plot_x(current_x, current_y, 1, 'blue', f'pc: {conf}')
+        plot_x(next_x, next_y, 0.5, 'lightblue', 'pn')
 
     # Adding grid lines with custom widths
     for i, line in enumerate(grid_lines_x):
@@ -831,11 +833,8 @@ def display_predict_in_checkerboard(target, pred, fileName, input_number=None):
     plt.ylim(y_min, y_max)
 
     # Save the plot to a file
-    plt.savefig(check_training_img_path+fileName, dpi=300)
+    plt.savefig(check_training_img_path+fileName, dpi=100)
     plt.close()
-
-    # Show the plot
-    # plt.show()
 
 def plot_x(x, y, linewidth, color, label):
     size = 0.5
@@ -845,6 +844,7 @@ def plot_x(x, y, linewidth, color, label):
     y_values2 = [y + size, y - size]
     plt.plot(x_values1, y_values1, c=color, linewidth=linewidth)
     plt.plot(x_values2, y_values2, c=color, linewidth=linewidth)
+    plt.text(x+1, y+1, label, fontsize=5)
 
 def display_image_with_coordinates(img_tensor, target, pred, fileName, input_number = None):
     
