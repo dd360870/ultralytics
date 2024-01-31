@@ -805,7 +805,7 @@ def display_predict_in_checkerboard(target, pred, fileName, input_number=None):
 
     if hit == 1:
         hit_xy = (x, y)
-        plt.scatter(*hit_xy, color='red', s=8)
+        plt.scatter(*hit_xy, color='red', s=6)
     plot_x(x, y, 1.3, 'red', 'gc')
     plot_x(x+dx, y+dy, 0.8, 'pink', 'gn')
 
@@ -821,7 +821,7 @@ def display_predict_in_checkerboard(target, pred, fileName, input_number=None):
 
         if float(hit) >= 0.5:
             hit_xy = (current_x, current_y)
-            plt.scatter(*hit_xy, color='blue', s=8)
+            plt.scatter(*hit_xy, color='blue', s=6)
             plot_x(current_x, current_y, 1, 'blue', f'pc{i}: {conf}, h: {hit}')
         else:
             plot_x(current_x, current_y, 1, 'blue', f'pc{i}: {conf}')
