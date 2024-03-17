@@ -1,3 +1,4 @@
+from matplotlib import patches, pyplot as plt
 import torch
 from torch.utils.data import Dataset
 from PIL import Image
@@ -35,10 +36,22 @@ class TrackNetDataset(Dataset):
                 
                 # Read the ball_trajectory csv file
                 ball_trajectory_df = pd.read_csv(ball_trajectory_file)
-                ball_trajectory_df['dX'] = ball_trajectory_df['X'].diff().fillna(0)
-                ball_trajectory_df['dY'] = ball_trajectory_df['Y'].diff().fillna(0)
+                ball_trajectory_df['dX'] = -1*ball_trajectory_df['X'].diff(-1).fillna(0)
+                ball_trajectory_df['dY'] = -1*ball_trajectory_df['Y'].diff(-1).fillna(0)
+                ball_trajectory_df['hit'] = ((ball_trajectory_df['Event'] == 1) | (ball_trajectory_df['Event'] == 2)).astype(int)
+
+                ball_trajectory_df['prev_hit'] = ball_trajectory_df['hit'].shift(fill_value=0)
+                ball_trajectory_df['next_hit'] = ball_trajectory_df['hit'].shift(-1, fill_value=0)
+                ball_trajectory_df['hit'] = ball_trajectory_df[['hit', 'prev_hit', 'next_hit']].max(axis=1)
                 
                 ball_trajectory_df = ball_trajectory_df.drop(['Fast'], axis=1)
+                ball_trajectory_df = ball_trajectory_df.drop(['Event'], axis=1)
+                ball_trajectory_df = ball_trajectory_df.drop(['Z'], axis=1)
+                ball_trajectory_df = ball_trajectory_df.drop(['Shot'], axis=1)
+                ball_trajectory_df = ball_trajectory_df.drop(['player_X'], axis=1)
+                ball_trajectory_df = ball_trajectory_df.drop(['player_Y'], axis=1)
+                ball_trajectory_df = ball_trajectory_df.drop(['prev_hit'], axis=1)
+                ball_trajectory_df = ball_trajectory_df.drop(['next_hit'], axis=1)
 
                 # Get the directory for frames of this video
                 frame_dir = os.path.join(match_dir_path, 'frame', video_file_name)
@@ -177,30 +190,3 @@ class TrackNetDataset(Dataset):
         img = F.pad(img, pad, "constant", value=pad_value)
 
         return img
-
-
-if __name__ == "__main__":
-    # test
-    dataset = TrackNetDataset(root_dir=r"C:\Users\user1\bartek\github\BartekTao\ultralytics\tracknet\train_data")
-    print("Total samples:", len(dataset))
-
-    # Test getting an item
-    images, ball_trajectory = dataset[0]
-    print("Images shape:", images.shape)
-    print("Ball trajectory shape:", ball_trajectory.shape)
-
-    # Print some details about the first image and the ball trajectory
-    print("First image:", images[0])
-    print("Ball trajectory:", ball_trajectory)
-
-
-    # Display the first image (optional)
-    import matplotlib.pyplot as plt
-    first_frame = images[:3]
-
-    # The image tensor shape is now [3, H, W], but matplotlib expects [H, W, 3]
-    # So we need to permute the dimensions
-    first_frame = first_frame.permute(1, 2, 0)
-
-    plt.imshow(first_frame)
-    plt.show()

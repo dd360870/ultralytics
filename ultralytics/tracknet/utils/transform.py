@@ -1,3 +1,4 @@
+
 def target_grid(target_x, target_y, stride):
     grid_x = int(target_x / stride)
     grid_y = int(target_y / stride)

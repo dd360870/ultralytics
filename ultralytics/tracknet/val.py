@@ -1,8 +1,9 @@
 import torch
-from dataset import TrackNetDataset
-from utils.transform import target_grid
+from ultralytics.tracknet.dataset import TrackNetDataset
+from ultralytics.tracknet.utils.transform import target_grid
 from ultralytics.yolo.data.build import build_dataloader
 from ultralytics.yolo.engine.validator import BaseValidator
+from ultralytics.yolo.utils import LOGGER
 from ultralytics.yolo.utils.metrics import DetMetrics
 
 
@@ -28,6 +29,11 @@ class TrackNetValidator(BaseValidator):
     
     def preprocess(self, batch):
         """In this case, the preprocessing step is mainly handled by the dataloader."""
+        batch['img'] = batch['img'].to(self.device, non_blocking=True)
+        batch['img'] = (batch['img'].half() if self.args.half else batch['img'].float()) / 255
+        for k in ['target']:
+            batch[k] = batch[k].to(self.device)
+
         return batch
     
     def postprocess(self, preds):
@@ -40,43 +46,68 @@ class TrackNetValidator(BaseValidator):
         # Placeholder for any metrics you might want to use.
         self.total_loss = 0.0
         self.num_samples = 0
+        self.TP = 0
+        self.TN = 0
+        self.FP = 0
+        self.FN = 0
+        self.acc = 0
+        self.hasMax = 0
+        self.hasBall = 0
     
     def update_metrics(self, preds, batch):
         """Calculate and update metrics based on predictions and batch."""
         # Placeholder for loss calculation, etc.
-        # preds = [[10*50*40*40]]
-        preds = preds[0] # only pick first (stride = 16)
+        # preds = [[batch*50*20*20]]
+        # batch['target'] = [batch*10*6]
+        preds = preds[0] # only pick first (stride = 32)
         batch_target = batch['target']
         batch_size = preds.shape[0]
-        if preds.shape == (50, 40, 40):
+        if preds.shape == (60, 20, 20):
             self.update_metrics_once(0, preds, batch_target)
         else:
             # for each batch
             for idx, pred in enumerate(preds):
-                self.update_metrics_once(idx, pred, batch_target)
+                self.update_metrics_once(idx, pred, batch_target[idx])
         #print((self.TP, self.FP, self.FN))
     def update_metrics_once(self, batch_idx, pred, batch_target):
-        # pred = [50 * 40 * 40]
-        pred_distri, pred_scores = torch.split(pred, [40, 10], dim=0)
+        # pred = [50 * 20 * 20]
+        # batch_target = [10*6]
+        pred_distri, pred_scores, pred_hits = torch.split(pred, [40, 10, 10], dim=0)
         pred_probs = torch.sigmoid(pred_scores)
+        # pred_probs = [10*20*20]
+        
+        pred_pos, pred_mov = torch.split(pred_distri, [20, 20], dim=0)
+        # pred_pos = torch.sigmoid(pred_pos)
+        # pred_mov = torch.tanh(pred_mov)
 
         max_values_dim1, max_indices_dim1 = pred_probs.max(dim=2)
         final_max_values, max_indices_dim2 = max_values_dim1.max(dim=1)
         max_positions = [(index.item(), max_indices_dim1[i, index].item()) for i, index in enumerate(max_indices_dim2)]
 
-        targets = pred_distri.clone().detach()
-        cls_targets = torch.zeros(10, pred_scores.shape[1], pred_scores.shape[2])
-        stride = 16
-        for idx, target in enumerate(batch_target[batch_idx]):
+        #targets = pred_distri.clone().detach()
+        #cls_targets = torch.zeros(10, pred_scores.shape[1], pred_scores.shape[2])
+        stride = 32
+        if len(batch_target.shape) == 3:
+            batch_target = batch_target[0]
+        for idx, target in enumerate(batch_target):
             if target[1] == 1:
                 # xy
                 grid_x, grid_y, offset_x, offset_y = target_grid(target[2], target[3], stride)
+                if (grid_x > 20 or grid_y > 20):
+                    LOGGER.Warning("target grid transform error")
+                if (pred_probs[idx][grid_x][grid_y] > 0.5):
+                    self.hasBall += 1
+                
+                # print(f"target: {(grid_x, grid_y, offset_x, offset_y)}, ")
+                # print(f"predict_conf: {pred_probs[idx][grid_x][grid_y]}, ")
+                # print(f"pred_pos: {pred_pos[idx][grid_x][grid_y]}")
                 # print(pred_probs[idx][max_positions[idx]])
                 # print(max_positions[idx])
                 if pred_probs[idx][max_positions[idx]] > 0.5:
+                    self.hasMax += 1
                     x, y = max_positions[idx]
-                    real_x = x*16 + pred_distri[idx][x][y]
-                    real_y = y*16 + pred_distri[idx][x][y]
+                    real_x = x*stride + pred_pos[idx][x][y] #*stride
+                    real_y = y*stride + pred_pos[idx][x][y] #*stride
                     if (grid_x, grid_y) == max_positions[idx]:
                         self.TP+=1
                     else:
@@ -93,7 +124,7 @@ class TrackNetValidator(BaseValidator):
 
     def get_stats(self):
         """Return the stats."""
-        return {'FN': self.FN, 'FP': self.FP, 'TN': self.TN, 'TP': self.TP}
+        return {'FN': self.FN, 'FP': self.FP, 'TN': self.TN, 'TP': self.TP, 'acc': self.acc, 'max_conf>0.5': self.hasMax, 'correct_cell>0.5':self.hasBall}
     
     def print_results(self):
         """Print the results."""
@@ -104,7 +135,7 @@ class TrackNetValidator(BaseValidator):
             precision = self.TP/(self.TP+self.FP)
             recall = self.TP/(self.TP+self.FN)
             f1 = (2*precision*recall)/(precision+recall)
-        print(f"Validation Loss: {self.loss}Validation Accuracy: {self.acc:.4f}, Validation Precision: {precision:.4f}, Validation Recall: {recall:.4f}, , Validation F1-Score: {f1:.4f}")
+        print(f"Validation Accuracy: {self.acc:.4f}, Validation Precision: {precision:.4f}, Validation Recall: {recall:.4f}, , Validation F1-Score: {f1:.4f}")
 
     def get_desc(self):
         """Return a description for tqdm progress bar."""
