@@ -109,6 +109,10 @@ copy_paste: 0.0  # (float) segment copy-paste (probability)
 
 # Custom config.yaml ---------------------------------------------------------------------------------------------------
 cfg:  # (str, optional) for overriding defaults.yaml
+weight_conf: 4000
+weight_pos: 1
+weight_mov: 1
+weight_hit: 10000
 
 # Tracker settings ------------------------------------------------------------------------------------------------------
 tracker: botsort.yaml  # (str) tracker type, choices=[botsort.yaml, bytetrack.yaml]
