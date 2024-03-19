@@ -95,7 +95,8 @@ class TrackNetLoss:
                     cls_targets[target_idx, grid_y, grid_x] = 1
             position_loss = 32*self.mse(pred_pos, target_pos)
 
-            move_loss = 640*self.mse(pred_mov, target_mov) # / (1 if mask_has_ball.sum() == 0 else mask_has_ball.sum())
+            if self.hyp.use_dxdy_loss:
+                move_loss = 640*self.mse(pred_mov, target_mov) # / (1 if mask_has_ball.sum() == 0 else mask_has_ball.sum())
 
             conf_loss = tracknet_conf_loss(cls_targets, pred_scores, [1, self.hyp.weight_conf], self.batch_count)
             hit_loss = self.hit_bce(pred_hits, hit_targets)
