@@ -26,7 +26,7 @@ WORKDIR /usr/src/ultralytics
 # Copy contents
 # COPY . /usr/src/app  (issues as not a .git directory)
 RUN git clone https://github.com/BartekTao/ultralytics.git /usr/src/ultralytics
-RUN git checkout feat/tracknetV4
+RUN git checkout feat/add_hit_label
 RUN git pull
 
 # Install pip packages
