@@ -1,0 +1,50 @@
+// For format details, see https://aka.ms/devcontainer.json. For config options, see the
+// README at: https://github.com/devcontainers/templates/tree/main/src/python
+{
+	"name": "Python 3",
+	// Or use a Dockerfile or Docker Compose file. More info: https://containers.dev/guide/dockerfile
+	//"image": "pytorch/pytorch:2.2.2-cuda12.1-cudnn8-runtime",
+    "build": {
+        "dockerfile": "Dockerfile"
+    },
+
+	// Features to add to the dev container. More info: https://containers.dev/features.
+	"features": {
+        "ghcr.io/devcontainers/features/desktop-lite:1": {},
+        "ghcr.io/devcontainers/features/common-utils:2": {
+            "username": "vscode",
+            "userUid": 1000070,
+            "userGid": 1000001
+        },
+    },
+    "runArgs": ["--gpus", "all", "--shm-size=32g"],
+	"remoteUser": "vscode",
+	"customizations": {
+		"vscode": {
+			"extensions": [
+				"ms-python.python",
+				"ms-azuretools.vscode-docker",
+				"mhutchie.git-graph",
+				"eamodio.gitlens",
+				"mechatroner.rainbow-csv",
+				"ms-toolsai.jupyter"
+			]
+		}
+	},
+    "mounts": [
+        "source=/hdd/marvin,target=/hdd/marvin,type=bind,consistency=cached",
+    ],
+
+
+	// Use 'forwardPorts' to make a list of ports inside the container available locally.
+	// "forwardPorts": [],
+
+	// Use 'postCreateCommand' to run commands after the container is created.
+	"postCreateCommand": "pip3 install --user ultralytics ipykernel",
+
+	// Configure tool-specific properties.
+	// "customizations": {},
+
+	// Uncomment to connect as root instead. More info: https://aka.ms/dev-containers-non-root.
+	// "remoteUser": "root"
+}
