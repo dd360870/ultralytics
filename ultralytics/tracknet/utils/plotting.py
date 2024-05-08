@@ -1,8 +1,9 @@
 from matplotlib import patches, patheffects, pyplot as plt
 import numpy as np
 
-check_training_img_path = r'C:\Users\user1\bartek\github\BartekTao\datasets\tracknet\check_training_img\img_'
+# check_training_img_path = r'C:\Users\user1\bartek\github\BartekTao\datasets\tracknet\check_training_img\img_'
 # check_training_img_path = r'/usr/src/datasets/tracknet/visualize_train_img/img_'
+check_training_img_path = "./test_data/"
 
 def display_predict_in_checkerboard(target, pred, fileName, input_number=None):
     x, y, dx, dy, hit = target[0]
@@ -67,7 +68,7 @@ def display_predict_in_checkerboard(target, pred, fileName, input_number=None):
     plt.ylim(y_min, y_max)
 
     # Save the plot to a file
-    plt.savefig(check_training_img_path+fileName, dpi=200)
+    plt.savefig(os.path.join(check_training_img_path, fileName), dpi=200)
     plt.close()
 
 def plot_x(x, y, linewidth, color, label):
@@ -80,7 +81,7 @@ def plot_x(x, y, linewidth, color, label):
     plt.plot(x_values2, y_values2, c=color, linewidth=linewidth)
     plt.text(x+1, y+1, label, fontsize=5)
 
-def display_image_with_coordinates(img_tensor, target, pred, fileName, input_number = None):
+def display_image_with_coordinates(img_tensor, target, pred, fileName, input_number = None, img_filepath=''):
     
     # Convert the image tensor to numpy array
     img_array = img_tensor.cpu().numpy()
@@ -94,13 +95,15 @@ def display_image_with_coordinates(img_tensor, target, pred, fileName, input_num
     img_height, img_width = img_array.shape[:2]
 
     # Plot each coordinate
+
+    # 紅色跟粉紅色 -> Ground Truth
     for (x, y, dx, dy) in target:
         cell_x = x//32*32
         cell_y = (y//32)*32
         rect = patches.Rectangle(xy=(cell_x, cell_y), height=32, width=32, edgecolor='red', facecolor='none')
         ax.add_patch(rect)
         ax.scatter(x, y, s=1.8, c='red', marker='o')
-        ax.scatter(x+dx, y+dy, s=1.6, c='#FFC0CB', marker='o')
+        #ax.scatter(x+dx, y+dy, s=1.6, c='#FFC0CB', marker='o')
 
     for (x_coordinates, y_coordinates, x, y, dx, dy, conf, hit) in pred:
         x_coordinates *= 32
@@ -115,7 +118,7 @@ def display_image_with_coordinates(img_tensor, target, pred, fileName, input_num
         text.set_path_effects([patheffects.Stroke(linewidth=2, foreground=(1, 1, 1, 0.3)),
                        patheffects.Normal()])
         ax.scatter(current_x, current_y, s=1.4, c='blue', marker='o')
-        ax.scatter(next_x, next_y, s=1.2, c='#87CEFA', marker='o')
+        #ax.scatter(next_x, next_y, s=1.2, c='#87CEFA', marker='o')
 
     # for i in range(p_array.shape[0]):
     #     for j in range(p_array.shape[1]):
@@ -127,6 +130,8 @@ def display_image_with_coordinates(img_tensor, target, pred, fileName, input_num
     #         ax.text(scaled_x, scaled_y, str(p_array[i, j]), color='blue', fontsize=8)
     if input_number:
         text_to_display = ""
+        if img_filepath:
+            text_to_display += f"img_filepath: {img_filepath}\n"
         for k, v in input_number.items():
             text_to_display += k + ':' + str(v) + '\n'
 
