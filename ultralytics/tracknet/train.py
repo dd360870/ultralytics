@@ -1,14 +1,17 @@
 from ultralytics.tracknet.dataset import TrackNetDataset
 from ultralytics.tracknet.tracknet_v4 import TrackNetV4
 from ultralytics.tracknet.val import TrackNetValidator
-from ultralytics.yolo.utils import RANK
+from ultralytics.yolo.utils import RANK, colorstr
 from ultralytics.yolo.v8.detect.train import DetectionTrainer
 from copy import copy
+from ultralytics.yolo.utils.plotting import plot_images, plot_labels, plot_results
 
 
 class TrackNetTrainer(DetectionTrainer):
     def build_dataset(self, img_path, mode='train', batch=None):
-        return TrackNetDataset(root_dir=img_path)
+        return TrackNetDataset(
+            root_dir=img_path,
+            prefix=colorstr(f"{mode}: "))
 
     def get_model(self, cfg=None, weights=None, verbose=True):
         model = TrackNetV4(cfg, ch=10, nc=self.data['nc'], verbose=verbose and RANK == -1)
@@ -29,6 +32,11 @@ class TrackNetTrainer(DetectionTrainer):
         """Returns a formatted string of training progress with epoch, GPU memory, loss, instances and size."""
         return ('\n' + '%11s' *
                 (3 + len(self.loss_names))) % ('Epoch', 'GPU_mem', *self.loss_names, 'Size')
+
+    def plot_metrics(self):
+        """Plots metrics from a CSV file."""
+        plot_results(file=self.csv, on_plot=self.on_plot)  # save results.png
+
     def plot_training_samples(self, batch, ni):
         """Plots training samples during YOLOv5 training."""
         pass
