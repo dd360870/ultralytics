@@ -4,6 +4,7 @@ import numpy as np
 import torch
 import torch.nn as nn
 import torch.nn.functional as F
+from ultralytics.tracknet.utils.plotting import display_image_with_coordinates, display_predict_in_checkerboard
 from ultralytics.tracknet.utils.transform import target_grid
 
 from ultralytics.yolo.utils import LOGGER
@@ -11,6 +12,9 @@ from ultralytics.yolo.utils import LOGGER
 # check_training_img_path = r'C:\Users\user1\bartek\github\BartekTao\datasets\tracknet\check_training_img\img_'
 # check_training_img_path = r'/usr/src/datasets/tracknet/visualize_train_img/img_'
 # check_val_img_path = r'/usr/src/datasets/tracknet/visualize_val_img/img_'
+
+TRAIN_BATCH_SIZE = 975
+VAL_BATCH_SIZE = 105
 
 class TrackNetLoss:
     def __init__(self, model):  # model must be de-paralleled
@@ -77,9 +81,13 @@ class TrackNetLoss:
             
             mask_has_ball = torch.zeros_like(target_pos)
             for target_idx, target in enumerate(batch_target[idx]):
+
+                # hit=1
                 if target[6] == 1:
                     grid_x, grid_y, offset_x, offset_y = target_grid(target[2], target[3], stride)
                     hit_targets[target_idx, grid_y, grid_x] = 1
+
+                # visiblilty=1
                 if target[1] == 1:
                     # xy
                     grid_x, grid_y, offset_x, offset_y = target_grid(target[2], target[3], stride)
@@ -116,65 +124,68 @@ class TrackNetLoss:
                 
 
             # check
-            # if (self.batch_count%400 == 0 and pred_scores.requires_grad and idx == 15) or (self.batch_count%20 == 0 and not pred_scores.requires_grad and idx == 15):
-            #     pred_conf_all = torch.sigmoid(pred_scores.detach()).cpu()
-            #     pred_hits_all = torch.sigmoid(pred_hits.detach()).cpu()
-            #     pred_mov_all = pred_mov.detach().clone()
-            #     pred_pos_all = pred_pos.detach().clone()
-            #     for rand_idx in range(10):
-            #         pred_conf = pred_conf_all[rand_idx]
-            #         pred__hit = pred_hits_all[rand_idx]
-            #         img = batch_img[idx][rand_idx]
-            #         x = int(batch_target[idx][rand_idx][2].item())
-            #         y = int(batch_target[idx][rand_idx][3].item())
-            #         dx = int(batch_target[idx][rand_idx][4].item())
-            #         dy = int(batch_target[idx][rand_idx][5].item())
-            #         hit = int(batch_target[idx][rand_idx][6].item())
+            if (self.batch_count%TRAIN_BATCH_SIZE == 0 and idx == 15 and pred_scores.requires_grad) or (self.batch_count%VAL_BATCH_SIZE == 0 and not pred_scores.requires_grad and idx == 15):
+                pred_conf_all = torch.sigmoid(pred_scores.detach()).cpu()
+                pred_hits_all = torch.sigmoid(pred_hits.detach()).cpu()
+                pred_mov_all = pred_mov.detach().clone()
+                pred_pos_all = pred_pos.detach().clone()
+                for rand_idx in range(10):
+                    pred_conf = pred_conf_all[rand_idx]
+                    pred__hit = pred_hits_all[rand_idx]
+                    img = batch_img[idx][rand_idx]
+                    x = int(batch_target[idx][rand_idx][2].item())
+                    y = int(batch_target[idx][rand_idx][3].item())
+                    dx = int(batch_target[idx][rand_idx][4].item())
+                    dy = int(batch_target[idx][rand_idx][5].item())
+                    hit = int(batch_target[idx][rand_idx][6].item())
 
-            #         pred_conf_np = pred_conf.numpy()
-            #         y_positions, x_positions = np.where(pred_conf_np >= 0.5)
-            #         pred_coordinates = list(zip(x_positions, y_positions))
+                    pred_conf_np = pred_conf.numpy()
+                    y_positions, x_positions = np.where(pred_conf_np >= 0.5)
+                    pred_coordinates = list(zip(x_positions, y_positions))
 
-            #         pred_list = []
-            #         for pred_x_coordinates, pred_y_coordinates in pred_coordinates:
-            #             pred_conf_format = "{:.2f}".format(pred_conf[pred_y_coordinates][pred_x_coordinates].item())
-            #             pred_hit_format = "{:.2f}".format(pred__hit[pred_y_coordinates][pred_x_coordinates].item())
-            #             pred_list.append((pred_x_coordinates, 
-            #                               pred_y_coordinates, 
-            #                               pred_pos_all[rand_idx][0][pred_y_coordinates][pred_x_coordinates].item(), 
-            #                               pred_pos_all[rand_idx][1][pred_y_coordinates][pred_x_coordinates].item(), 
-            #                               pred_mov_all[rand_idx][0][pred_y_coordinates][pred_x_coordinates].item(), 
-            #                               pred_mov_all[rand_idx][1][pred_y_coordinates][pred_x_coordinates].item(), 
-            #                               pred_conf_format,
-            #                               pred_hit_format))
+                    pred_list = []
+                    for pred_x_coordinates, pred_y_coordinates in pred_coordinates:
+                        pred_conf_format = "{:.2f}".format(pred_conf[pred_y_coordinates][pred_x_coordinates].item())
+                        pred_hit_format = "{:.2f}".format(pred__hit[pred_y_coordinates][pred_x_coordinates].item())
+                        pred_list.append((pred_x_coordinates, 
+                                          pred_y_coordinates, 
+                                          pred_pos_all[rand_idx][0][pred_y_coordinates][pred_x_coordinates].item(), 
+                                          pred_pos_all[rand_idx][1][pred_y_coordinates][pred_x_coordinates].item(), 
+                                          pred_mov_all[rand_idx][0][pred_y_coordinates][pred_x_coordinates].item(), 
+                                          pred_mov_all[rand_idx][1][pred_y_coordinates][pred_x_coordinates].item(), 
+                                          pred_conf_format,
+                                          pred_hit_format))
 
-            #         filename = f'{self.batch_count//1185}_{int(self.batch_count%1185)}_{rand_idx}_{pred_scores.requires_grad}'
+                    if pred_scores.requires_grad:
+                        # training
+                        filename = f'train/img_{self.batch_count//TRAIN_BATCH_SIZE}_{int(self.batch_count%TRAIN_BATCH_SIZE)}_{rand_idx}'
+                    else:
+                        # val
+                        filename = f'val/img_{self.batch_count//VAL_BATCH_SIZE}_{int(self.batch_count%VAL_BATCH_SIZE)}_{rand_idx}'
 
-            #         count_ge_05 = np.count_nonzero(pred_conf >= 0.5)
-            #         count_lt_05 = np.count_nonzero(pred_conf < 0.5)
-            #         loss_dict = {}
-            #         loss_dict['conf_loss'] = conf_loss.item()
-            #         loss_dict['position_loss'] = position_loss.item()
-            #         loss_dict['moving_loss'] = move_loss.item()
-            #         loss_dict['pred_conf >= 0.5 count'] = count_ge_05
-            #         loss_dict['pred_conf < 0.5 count'] = count_lt_05
-            #         loss_dict['x, y'] = (x%32, y%32)
-            #         loss_dict['pred_x, pred_y'] = (pred_pos_all[rand_idx][0][int(y//32)][int(x//32)].item()*32, pred_pos_all[rand_idx][1][int(y//32)][int(x//32)].item()*32)
-            #         loss_dict['dx, dy'] = (dx, dy)
-            #         loss_dict['pred_dx, pred_dy'] = (pred_mov_all[rand_idx][0][int(y//32)][int(x//32)].item()*640, pred_mov_all[rand_idx][1][int(y//32)][int(x//32)].item()*640)
+                    count_ge_05 = np.count_nonzero(pred_conf >= 0.5)
+                    count_lt_05 = np.count_nonzero(pred_conf < 0.5)
+                    loss_dict = {}
+                    loss_dict['conf_loss'] = conf_loss.item()
+                    loss_dict['position_loss'] = position_loss.item()
+                    loss_dict['pred_conf >= 0.5 count'] = count_ge_05
+                    loss_dict['pred_conf < 0.5 count'] = count_lt_05
+                    loss_dict['x, y'] = (x%32, y%32)
+                    loss_dict['pred_x, pred_y'] = (pred_pos_all[rand_idx][0][int(y//32)][int(x//32)].item()*32, pred_pos_all[rand_idx][1][int(y//32)][int(x//32)].item()*32)
 
-            #         display_predict_in_checkerboard([(x, y, dx, dy, hit)], pred_list, 'board_'+filename, loss_dict)
-            #         display_image_with_coordinates(img, [(x, y, dx, dy)], pred_list, filename, loss_dict)
+                    #display_predict_in_checkerboard([(x, y, dx, dy, hit)], pred_list, 'board_'+filename, loss_dict)
+                    display_image_with_coordinates(img, [(x, y, dx, dy)], pred_list, filename, loss_dict)
 
             loss[0] += position_loss * self.hyp.weight_pos
-            loss[1] += move_loss * self.hyp.weight_mov
+            #loss[1] += move_loss * self.hyp.weight_mov
             loss[2] += conf_loss
-            loss[3] += hit_loss
+            #loss[3] += hit_loss
         tlose = loss.sum() * batch_size
         tlose_item = loss.detach()
+
         self.batch_count+=1
 
-        if preds.requires_grad and self.train_count >= 1185 and self.train_count%1185 == 0:
+        if preds.requires_grad and self.train_count >= TRAIN_BATCH_SIZE and self.train_count%TRAIN_BATCH_SIZE == 0:
             if self.TP > 0:
                 precision = self.TP/(self.TP+self.FP)
                 recall = self.TP/(self.TP+self.FN)

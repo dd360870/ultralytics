@@ -5,7 +5,7 @@ from ultralytics.yolo.data.build import build_dataloader
 from ultralytics.yolo.engine.validator import BaseValidator
 from ultralytics.yolo.utils import LOGGER
 from ultralytics.yolo.utils.metrics import DetMetrics
-
+import numpy as np
 
 class TrackNetValidator(BaseValidator):
     def __init__(self, dataloader=None, save_dir=None, pbar=None, args=None, _callbacks=None):
@@ -14,13 +14,15 @@ class TrackNetValidator(BaseValidator):
         self.is_coco = False
         self.class_map = None
         self.metrics = DetMetrics(save_dir=self.save_dir, on_plot=self.on_plot)
-        self.iouv = torch.linspace(0.5, 0.95, 10)  # iou vector for mAP@0.5:0.95
-        self.niou = self.iouv.numel()
+        self.seen = 0
         self.TP = 0
         self.TN = 0
         self.FP = 0
         self.FN = 0
         self.acc = 0
+        self.precision = 0
+        self.recall = 0
+        self.f1 = 0
     
     def get_dataloader(self, dataset_path, batch_size):
         """For TrackNet, we can use the provided TrackNetDataset to get the dataloader."""
@@ -38,38 +40,118 @@ class TrackNetValidator(BaseValidator):
     
     def postprocess(self, preds):
         """Postprocess the model predictions if needed."""
-        # For TrackNet, there might not be much postprocessing needed.
-        return preds
-    
+        if isinstance(preds, list):
+            preds = preds[0]
+
+        res = []
+        for i in range(preds.shape[0]):
+            res.append(self.teardown(preds[i]))
+        return res
+
+    def teardown(self, preds):
+        #preds size: b*60*20*20
+
+        pred_distri, pred_scores, pred_hits = torch.split(preds, [40, 10, 10], dim=0)
+        pred_distri = pred_distri.reshape(4, 10, 20, 20)
+        pred_pos, pred_mov = torch.split(pred_distri, [2, 2], dim=0)
+
+        # pred_pos shape: [2,10,20,20]
+        # permute() makes shape to [10,2,20,20]
+        pred_pos = pred_pos.permute(1, 0, 2, 3).contiguous()
+        pred_mov = pred_mov.permute(1, 0, 2, 3).contiguous()
+
+        pred_pos = torch.sigmoid(pred_pos)
+        pred_mov = torch.tanh(pred_mov)
+
+        # [10, 20, 20]
+        pred_scores
+
+        # [2, 10, 20, 20]
+        pred_pos
+
+        # [2, 10, 20, 20]
+        pred_mov
+
+        # [10, 20, 20]
+        pred_hits
+
+        pred_conf_all = torch.sigmoid(pred_scores.detach()).cpu()
+        pred_mov_all = pred_mov.detach().clone()
+        pred_pos_all = pred_pos.detach().clone()
+
+        res = []
+
+        for i in range(10):
+            pred_conf = pred_conf_all[i]
+
+            pred_conf_np = pred_conf.numpy()
+            y_positions, x_positions = np.where(pred_conf_np >= 0.5)
+
+            detect = None
+            score = -1
+            for x, y in zip(x_positions, y_positions):
+                if pred_conf[y][x].item() > score:
+                    detect = {
+                        "cell_x": x,
+                        "cell_y": y,
+                        "x": x*32+pred_pos_all[i][0][y][x].item()*32,
+                        "y": y*32+pred_pos_all[i][1][y][x].item()*32,
+                        "confidence": pred_conf[y][x].item()
+                    }
+                    score = pred_conf[y][x].item()
+            res.append(detect)
+
+        return res
+
     def init_metrics(self, model):
         """Initialize some metrics."""
         # Placeholder for any metrics you might want to use.
-        self.total_loss = 0.0
-        self.num_samples = 0
+        self.seen = 0
         self.TP = 0
         self.TN = 0
         self.FP = 0
         self.FN = 0
         self.acc = 0
-        self.hasMax = 0
-        self.hasBall = 0
+        self.precision = 0
+        self.recall = 0
+        self.f1 = 0
     
     def update_metrics(self, preds, batch):
         """Calculate and update metrics based on predictions and batch."""
-        # Placeholder for loss calculation, etc.
-        # preds = [[batch*50*20*20]]
-        # batch['target'] = [batch*10*6]
-        preds = preds[0] # only pick first (stride = 32)
-        batch_target = batch['target']
-        batch_size = preds.shape[0]
-        if preds.shape == (60, 20, 20):
-            self.update_metrics_once(0, preds, batch_target)
-        else:
-            # for each batch
-            for idx, pred in enumerate(preds):
-                self.update_metrics_once(idx, pred, batch_target[idx])
-        #print((self.TP, self.FP, self.FN))
+
+        #nl, npr = batch['target'].shape[0], pred.shape[0]  # number of labels, predictions
+        # iterate batch item
+        for batch_idx, pred in enumerate(preds):
+            self.update_metrics_once(batch_idx, pred, batch['target'][batch_idx])
+
     def update_metrics_once(self, batch_idx, pred, batch_target):
+
+        # 16 pixel
+        threshold_distance = 32
+
+        # iterate each frame
+        for target, pr in zip(batch_target, pred):
+            self.seen += 1
+            _, visibility, x, y, _, _, _ = target
+
+            if pr:
+                if visibility == 1:
+                    dist = np.linalg.norm(torch.tensor([x - pr['x'], y - pr['y']]).numpy())
+
+                    if dist < threshold_distance:
+                        self.TP += 1
+                    else:
+                        self.FN += 1
+                        self.FP += 1
+                else:
+                    self.FP += 1
+            else:
+                if visibility == 1:
+                    self.FN += 1
+                else:
+                    self.TN += 1
+
+        return
         # pred = [50 * 20 * 20]
         # batch_target = [10*6]
         pred_distri, pred_scores, pred_hits = torch.split(pred, [40, 10, 10], dim=0)
@@ -120,23 +202,33 @@ class TrackNetValidator(BaseValidator):
                 self.TN+=1
     def finalize_metrics(self):
         """Calculate final metrics for this validation run."""
-        self.acc = (self.TN + self.TP) / (self.FN+self.FP+self.TN + self.TP)
+        self.acc = (self.TN + self.TP) / (self.FN + self.FP + self.TN + self.TP)
+        if (self.TP + self.FP) > 0:
+            self.precision = self.TP / (self.TP + self.FP)
+        if (self.TP + self.FN) > 0:
+            self.recall = self.TP / (self.TP + self.FN)
+        if self.precision > 0 and self.recall > 0:
+            self.f1 = 2 / ((1 / self.precision) + (1 / self.recall))
 
     def get_stats(self):
         """Return the stats."""
-        return {'FN': self.FN, 'FP': self.FP, 'TN': self.TN, 'TP': self.TP, 'acc': self.acc, 'max_conf>0.5': self.hasMax, 'correct_cell>0.5':self.hasBall}
+        #return {'FN': self.FN, 'FP': self.FP, 'TN': self.TN, 'TP': self.TP, 'acc': self.acc, 'max_conf>0.5': self.hasMax, 'correct_cell>0.5':self.hasBall}
+        return {'metrics/FN': self.FN, 'metrics/FP': self.FP, 'metrics/TN': self.TN, 'metrics/TP': self.TP}
     
     def print_results(self):
         """Print the results."""
-        precision = 0
-        recall = 0
-        f1 = 0
-        if self.TP > 0:
-            precision = self.TP/(self.TP+self.FP)
-            recall = self.TP/(self.TP+self.FN)
-            f1 = (2*precision*recall)/(precision+recall)
-        print(f"Validation Accuracy: {self.acc:.4f}, Validation Precision: {precision:.4f}, Validation Recall: {recall:.4f}, , Validation F1-Score: {f1:.4f}")
+        pf = '%22s' + '%11.3g' * 4  # print format
+        LOGGER.info(pf % (self.seen, self.acc, self.precision, self.recall, self.f1))
+        pass
 
     def get_desc(self):
-        """Return a description for tqdm progress bar."""
-        return "Validating TrackNet"
+        """Return a formatted string summarizing class metrics of YOLO model."""
+        return ('%22s' + '%11s' * 4) % ('Frames', 'Accuracy', 'Precision', 'Recall', 'F1-score')
+
+    def plot_val_samples(self, batch, ni):
+        #TODO:
+        pass
+
+    def plot_predictions(self, batch, preds, ni):
+        #TODO:
+        pass

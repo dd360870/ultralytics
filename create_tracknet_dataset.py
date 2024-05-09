@@ -6,6 +6,16 @@ import shutil
 dataset_name = 'tracknet-2'
 include_matches = ['alex_tracknet/']
 
+#TODO: create dataset yaml
+#path: ../datasets/tracknet-2  # dataset root dir
+#train: train_data  # train images (relative to 'path') 128 images
+#val: val_data  # val images (relative to 'path') 128 images
+#test:  # test images (optional)
+#
+## Classes
+#names:
+#  0: shuttlecock
+
 #dataset_name = 'tracknet-1'
 #include_matches = ['profession_match*/', 'alex_tracknet/']
 
