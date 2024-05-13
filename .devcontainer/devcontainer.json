@@ -40,7 +40,7 @@
 	// "forwardPorts": [],
 
 	// Use 'postCreateCommand' to run commands after the container is created.
-	"postCreateCommand": "pip3 install --user ultralytics ipykernel",
+	"postCreateCommand": "pip3 install --user ultralytics ipykernel tensorboard",
 
 	// Configure tool-specific properties.
 	// "customizations": {},

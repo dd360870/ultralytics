@@ -1,5 +1,6 @@
 from matplotlib import patches, patheffects, pyplot as plt
 import numpy as np
+import os
 
 # check_training_img_path = r'C:\Users\user1\bartek\github\BartekTao\datasets\tracknet\check_training_img\img_'
 # check_training_img_path = r'/usr/src/datasets/tracknet/visualize_train_img/img_'
@@ -27,7 +28,7 @@ def display_predict_in_checkerboard(target, pred, fileName, input_number=None):
         hit_xy = (x, y)
         plt.scatter(*hit_xy, color='red', s=6)
     plot_x(x, y, 1.3, 'red', 'gc')
-    plot_x(x+dx, y+dy, 0.8, 'pink', 'gn')
+    #plot_x(x+dx, y+dy, 0.8, 'pink', 'gn')
 
     # Plotting the predictions
     i = 0
@@ -36,16 +37,16 @@ def display_predict_in_checkerboard(target, pred, fileName, input_number=None):
         y_coordinates *= 32
         current_x = x_coordinates + x * 32
         current_y = y_coordinates + y * 32
-        next_x = current_x + dx * 640
-        next_y = current_y + dy * 640
+        #next_x = current_x + dx * 640
+        #next_y = current_y + dy * 640
 
-        if float(hit) >= 0.5:
-            hit_xy = (current_x, current_y)
-            plt.scatter(*hit_xy, color='blue', s=6)
-            plot_x(current_x, current_y, 1, 'blue', f'pc{i}: {conf}, h: {hit}')
-        else:
-            plot_x(current_x, current_y, 1, 'blue', f'pc{i}: {conf}')
-        plot_x(next_x, next_y, 0.5, (0.34, 0.425, 0.95), f'pn{i}')
+        #if float(hit) >= 0.5:
+        #    hit_xy = (current_x, current_y)
+        #    plt.scatter(*hit_xy, color='blue', s=6)
+        #    plot_x(current_x, current_y, 1, 'blue', f'pc{i}: {conf}, h: {hit}')
+        #else:
+        plot_x(current_x, current_y, 1, 'blue', f'pc{i}: {conf}')
+        #plot_x(next_x, next_y, 0.5, (0.34, 0.425, 0.95), f'pn{i}')
         i+=1
 
     # Adding grid lines with custom widths

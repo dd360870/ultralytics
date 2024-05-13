@@ -125,6 +125,7 @@ class TrackNetLoss:
 
             # check
             if (self.batch_count%TRAIN_BATCH_SIZE == 0 and idx == 15 and pred_scores.requires_grad) or (self.batch_count%VAL_BATCH_SIZE == 0 and not pred_scores.requires_grad and idx == 15):
+                continue
                 pred_conf_all = torch.sigmoid(pred_scores.detach()).cpu()
                 pred_hits_all = torch.sigmoid(pred_hits.detach()).cpu()
                 pred_mov_all = pred_mov.detach().clone()
@@ -173,7 +174,7 @@ class TrackNetLoss:
                     loss_dict['x, y'] = (x%32, y%32)
                     loss_dict['pred_x, pred_y'] = (pred_pos_all[rand_idx][0][int(y//32)][int(x//32)].item()*32, pred_pos_all[rand_idx][1][int(y//32)][int(x//32)].item()*32)
 
-                    #display_predict_in_checkerboard([(x, y, dx, dy, hit)], pred_list, 'board_'+filename, loss_dict)
+                    display_predict_in_checkerboard([(x, y, dx, dy, hit)], pred_list, f"{filename}_board", loss_dict)
                     display_image_with_coordinates(img, [(x, y, dx, dy)], pred_list, filename, loss_dict)
 
             loss[0] += position_loss * self.hyp.weight_pos

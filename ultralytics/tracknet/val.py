@@ -1,4 +1,5 @@
 import torch
+from pathlib import Path
 from ultralytics.tracknet.dataset import TrackNetDataset
 from ultralytics.tracknet.utils.transform import target_grid
 from ultralytics.yolo.data.build import build_dataloader
@@ -79,7 +80,7 @@ class TrackNetValidator(BaseValidator):
         pred_mov_all = pred_mov.detach().clone()
         pred_pos_all = pred_pos.detach().clone()
 
-        res = []
+        res = [] # shape: (frame, labels)
 
         for i in range(10):
             pred_conf = pred_conf_all[i]
@@ -87,19 +88,17 @@ class TrackNetValidator(BaseValidator):
             pred_conf_np = pred_conf.numpy()
             y_positions, x_positions = np.where(pred_conf_np >= 0.5)
 
-            detect = None
-            score = -1
-            for x, y in zip(x_positions, y_positions):
-                if pred_conf[y][x].item() > score:
-                    detect = {
-                        "cell_x": x,
-                        "cell_y": y,
-                        "x": x*32+pred_pos_all[i][0][y][x].item()*32,
-                        "y": y*32+pred_pos_all[i][1][y][x].item()*32,
-                        "confidence": pred_conf[y][x].item()
-                    }
-                    score = pred_conf[y][x].item()
-            res.append(detect)
+            detects = []
+
+            for x, y in zip(x_positions.tolist(), y_positions.tolist()):
+                detects.append({
+                    "cell_x": x,
+                    "cell_y": y,
+                    "x": x*32+pred_pos_all[i][0][y][x].item()*32,
+                    "y": y*32+pred_pos_all[i][1][y][x].item()*32,
+                    "confidence": pred_conf[y][x].item()
+                })
+            res.append(detects)
 
         return res
 
@@ -124,32 +123,51 @@ class TrackNetValidator(BaseValidator):
         for batch_idx, pred in enumerate(preds):
             self.update_metrics_once(batch_idx, pred, batch['target'][batch_idx])
 
+            # Save
+            if self.args.save_json:
+                self.pred_to_json(pred, batch['match_name'][batch_idx], batch['video_name'][batch_idx], batch['frame_idx_begin'][batch_idx], batch['frame_idx_end'][batch_idx])
+
+
+    def pred_to_json(self, predn, match_name, video_name, fid_min, fid_max):
+        """Serialize YOLO predictions to COCO json format."""
+        self.jdict.append({
+            'match_name': match_name,
+            'video_name': video_name,
+            'frame_id_min': int(fid_min),
+            'frame_id_max': int(fid_max),
+            'pred': predn
+            })
+
     def update_metrics_once(self, batch_idx, pred, batch_target):
 
         # 16 pixel
-        threshold_distance = 32
+        threshold_distance = 4
 
         # iterate each frame
         for target, pr in zip(batch_target, pred):
             self.seen += 1
             _, visibility, x, y, _, _, _ = target
 
-            if pr:
-                if visibility == 1:
-                    dist = np.linalg.norm(torch.tensor([x - pr['x'], y - pr['y']]).numpy())
+            if len(pr) > 0 and visibility == 0:
+                self.FP += len(pr)
+            elif len(pr) > 0 and visibility == 1:
+                found = 0 
+                for p in pr:
+                    dist = np.linalg.norm(torch.tensor([x - p['x'], y - p['y']]).numpy())
 
                     if dist < threshold_distance:
-                        self.TP += 1
+                        found += 1
                     else:
-                        self.FN += 1
-                        self.FP += 1
+                        self.FP += 1                   
+                if found > 0:
+                    self.TP += 1
+                    self.FN += (found - 1)
                 else:
-                    self.FP += 1
-            else:
-                if visibility == 1:
                     self.FN += 1
-                else:
-                    self.TN += 1
+            elif len(pr) == 0 and visibility == 0:
+                self.TN += 1
+            elif len(pr) == 0 and visibility == 1:
+                self.FN += 1
 
         return
         # pred = [50 * 20 * 20]
@@ -202,6 +220,11 @@ class TrackNetValidator(BaseValidator):
                 self.TN+=1
     def finalize_metrics(self):
         """Calculate final metrics for this validation run."""
+        pass
+
+    def get_stats(self):
+        """Return the stats."""
+        #return {'FN': self.FN, 'FP': self.FP, 'TN': self.TN, 'TP': self.TP, 'acc': self.acc, 'max_conf>0.5': self.hasMax, 'correct_cell>0.5':self.hasBall}
         self.acc = (self.TN + self.TP) / (self.FN + self.FP + self.TN + self.TP)
         if (self.TP + self.FP) > 0:
             self.precision = self.TP / (self.TP + self.FP)
@@ -210,10 +233,15 @@ class TrackNetValidator(BaseValidator):
         if self.precision > 0 and self.recall > 0:
             self.f1 = 2 / ((1 / self.precision) + (1 / self.recall))
 
-    def get_stats(self):
-        """Return the stats."""
-        #return {'FN': self.FN, 'FP': self.FP, 'TN': self.TN, 'TP': self.TP, 'acc': self.acc, 'max_conf>0.5': self.hasMax, 'correct_cell>0.5':self.hasBall}
-        return {'metrics/FN': self.FN, 'metrics/FP': self.FP, 'metrics/TN': self.TN, 'metrics/TP': self.TP}
+        return {
+            'metrics/FN': self.FN,
+            'metrics/FP': self.FP,
+            'metrics/TN': self.TN,
+            'metrics/TP': self.TP,
+            'metrics/accuracy': self.acc,
+            'metrics/precision': self.precision,
+            'metrics/recall': self.recall,
+            'metrics/f1': self.f1}
     
     def print_results(self):
         """Print the results."""

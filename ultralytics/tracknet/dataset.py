@@ -73,11 +73,15 @@ class TrackNetDataset(Dataset):
                 if len(frames) == self.num_input and len(target) == self.num_input:
                     npy_path = self.img_cache_dir(match_name, video_name, frames)
 
+                    frame_indices = [int(x.removesuffix('.png')) for x in frames]
+
                     self.samples.append({
                         "match_name": match_name,
                         "video_name": video_name,
                         "cache_npy": npy_path,
                         "img_files": frames,
+                        "frame_idx_begin": min(frame_indices),
+                        "frame_idx_end": max(frame_indices),
                         "target": target
                     })
 
@@ -150,7 +154,15 @@ class TrackNetDataset(Dataset):
 
         img_files = [f"{self.root_dir}/../{im}" for im in d['img_files']]
 
-        return {"img": img, "target": target, "img_files": img_files}
+        return {
+            "img": img,
+            "target": target,
+            #"img_files": img_files,
+            "match_name": d['match_name'],
+            "video_name": d['video_name'],
+            "frame_idx_begin": d['frame_idx_begin'],
+            "frame_idx_end": d['frame_idx_end'],
+            }
 
     def transform_coordinates(self, data, w, h, target_size=640):
         """

@@ -25,6 +25,7 @@ def main(arg):
     overrides['data'] = arg.data
     overrides['epochs'] = arg.epochs
     overrides['plots'] = True
+    overrides['save'] = True
     overrides['batch'] = arg.batch
     overrides['patience'] = 300
     overrides['val'] = arg.val
@@ -121,7 +122,6 @@ def main(arg):
             #elapsed_times+=elapsed_time
 
         print(f"avg predict time: { elapsed_times / len(dataloader):.2f} 毫秒")
-        
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description='Train a custom model with overrides.')
@@ -137,4 +137,10 @@ if __name__ == "__main__":
     parser.add_argument('--weights', type=str, default=None, help='transfer weights')
     
     args = parser.parse_args()
+
+    # DEBUG
+    #python tracknet.py --mode=val --model_path=./runs/detect/train59/weights/last.pt 
+    #args.mode = 'val'
+    #args.model_path = './runs/detect/train59/weights/last.pt'
+
     main(args)
