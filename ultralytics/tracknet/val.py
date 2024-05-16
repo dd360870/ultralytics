@@ -161,7 +161,6 @@ class TrackNetValidator(BaseValidator):
                         self.FP += 1                   
                 if found > 0:
                     self.TP += 1
-                    self.FN += (found - 1)
                 else:
                     self.FN += 1
             elif len(pr) == 0 and visibility == 0:

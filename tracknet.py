@@ -51,6 +51,7 @@ def main(arg):
         validator = TrackNetValidator(args=args, _callbacks=callbacks.get_default_callbacks())
         validator(model=model)
 
+        print(validator.get_stats())
         print(validator.metrics)
     elif arg.mode == 'predict':
         model, _ = attempt_load_one_weight(arg.model_path)
